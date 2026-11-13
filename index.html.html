@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>// DECLASS_TERMINAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#050805;--bg2:#0a110a;--panel:#0d150d;--fg:#39ff6a;--fg-dim:#1e8a3e;
+--fg-bright:#aaffbb;--amber:#ffb000;--red:#ff4d4d;--line:#164623;}
+*{box-sizing:border-box;}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"Share Tech Mono",monospace;
+padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);min-height:100vh;overflow-x:hidden;}
+canvas#rain{position:fixed;inset:0;z-index:1;opacity:0.22;pointer-events:none;}
+.scan{pointer-events:none;position:fixed;inset:0;z-index:50;opacity:0.45;
+background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,0.35) 3px);}
+.glow{position:fixed;inset:0;z-index:2;pointer-events:none;
+background:radial-gradient(ellipse at 50% 0%,rgba(57,255,106,0.08),transparent 60%);}
+.vignette{position:fixed;inset:0;z-index:3;pointer-events:none;box-shadow:inset 0 0 160px rgba(0,0,0,0.8);}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:60;}
+
+#gate{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;}
+.term-box{width:100%;max-width:480px;border:1px solid var(--line);background:var(--bg2);padding:28px 26px;box-shadow:0 0 40px rgba(57,255,106,0.08);position:relative;z-index:41;}
+.ascii{font-size:0.6rem;line-height:1.1;color:var(--fg-dim);white-space:pre;overflow-x:auto;margin:0 0 16px;}
+.gate-line{margin:4px 0;font-size:0.9rem;}
+.gate-line .lbl{color:var(--fg-dim);}
+#attempts{font-size:0.72rem;color:var(--fg-dim);margin-top:6px;}
+#passform{display:flex;gap:8px;margin-top:16px;}
+#passform input{flex:1;background:#000;border:1px solid var(--fg-dim);color:var(--fg-bright);font-family:inherit;font-size:1rem;padding:10px 12px;letter-spacing:4px;}
+#passform input:focus{outline:1px solid var(--fg);outline-offset:1px;}
+#passform button{background:var(--fg-dim);color:#02130a;border:none;font-family:inherit;font-weight:bold;padding:10px 16px;cursor:pointer;letter-spacing:1px;}
+#passform button:hover{background:var(--fg);}
+#passform button:disabled{background:#333;color:#888;cursor:not-allowed;}
+#err{color:var(--red);font-size:0.8rem;margin-top:10px;min-height:1.2em;}
+.shake{animation:shake 0.35s;}
+@keyframes shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-8px);}40%{transform:translateX(8px);}60%{transform:translateX(-6px);}80%{transform:translateX(6px);}}
+.cursor{display:inline-block;width:9px;height:1.1em;background:var(--fg);vertical-align:text-bottom;animation:blink 1s steps(1) infinite;}
+@keyframes blink{50%{opacity:0;}}
+
+#scare{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;flex-direction:column;
+background:#1a0000;color:#ff2b2b;text-align:center;}
+#scare.show{display:flex;animation:flashred 1.4s ease-out;}
+@keyframes flashred{0%{background:#ff0000;}15%{background:#1a0000;}30%{background:#ff0000;}50%{background:#1a0000;}100%{background:#1a0000;}}
+#scare .skull{font-size:5rem;animation:glitch 0.9s steps(2) 3;}
+@keyframes glitch{0%{transform:translate(0,0);}25%{transform:translate(-4px,2px);}50%{transform:translate(4px,-2px);}75%{transform:translate(-2px,-2px);}100%{transform:translate(0,0);}}
+#scare h2{font-family:"Share Tech Mono",monospace;font-size:1.5rem;letter-spacing:3px;margin:14px 0 6px;}
+#scare p{color:#ff8a8a;font-size:0.85rem;}
+
+#app{display:none;position:relative;z-index:5;max-width:1180px;margin:0 auto;padding:18px 16px 70px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:14px;}
+.topbar h1{font-size:1rem;margin:0;color:var(--fg-bright);font-weight:normal;letter-spacing:1px;}
+.indicators{display:flex;gap:14px;flex-wrap:wrap;}
+.ind{font-size:0.68rem;color:var(--fg-dim);}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;animation:pulse 1.8s ease-in-out infinite;}
+.dot.g{background:var(--fg);} .dot.a{background:var(--amber);} .dot.r{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.25;}}
+
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.statbox{border:1px solid var(--line);background:var(--panel);padding:8px 12px;font-size:0.7rem;color:var(--fg-dim);min-width:100px;}
+.statbox b{display:block;color:var(--fg-bright);font-size:1.1rem;font-weight:normal;}
+
+.layout{display:grid;grid-template-columns:180px 1fr 190px;gap:14px;}
+@media (max-width:900px){.layout{grid-template-columns:1fr;}#sidebar,#ticker{display:none;}}
+
+#sidebar{border:1px solid var(--line);background:var(--panel);padding:12px;font-size:0.72rem;color:var(--fg-dim);align-self:start;}
+#sidebar .tree div{white-space:pre;margin:2px 0;}
+#sidebar .hi{color:var(--fg-bright);}
+.dnode{cursor:pointer;padding:3px 2px;transition:color .15s;}
+.dnode:hover{color:var(--fg-bright);text-shadow:0 0 6px var(--fg);}
+.dnode.on{color:var(--amber);}
+#dirpulse{min-height:1.4em;}
+
+main{min-width:0;}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;}
+.tabs button{background:transparent;border:1px solid var(--line);color:var(--fg-dim);font-family:inherit;font-size:0.76rem;padding:8px 12px;cursor:pointer;letter-spacing:0.5px;}
+.tabs button.active{color:#02130a;background:var(--fg);border-color:var(--fg);}
+.tabs button:hover:not(.active){color:var(--fg);}
+
+.pane{display:none;}
+.pane.active{display:block;}
+h2.sec{font-size:0.9rem;color:var(--amber);margin:0 0 12px;letter-spacing:1px;}
+p{line-height:1.7;color:#bfeccb;font-size:0.9rem;}
+.dim{color:var(--fg-dim);}
+.warn{color:var(--red);font-size:0.78rem;border:1px dashed var(--red);padding:8px 10px;margin-bottom:12px;}
+.typeline{border-left:2px solid var(--fg-dim);padding-left:12px;margin:16px 0;}
+.stamp-row{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.stamp{border:2px solid var(--red);color:var(--red);font-size:0.68rem;padding:4px 8px;transform:rotate(-3deg);letter-spacing:2px;}
+.stamp.amber{border-color:var(--amber);color:var(--amber);transform:rotate(2deg);}
+
+input[type="text"]{width:100%;background:#000;border:1px solid var(--fg-dim);color:var(--fg-bright);font-family:inherit;font-size:0.92rem;padding:10px 12px;margin-bottom:10px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.chip{border:1px solid var(--line);color:var(--fg-dim);font-size:0.68rem;padding:5px 9px;cursor:pointer;letter-spacing:0.5px;}
+.chip.on{background:var(--fg-dim);color:#02130a;border-color:var(--fg-dim);}
+#count{font-size:0.72rem;color:var(--fg-dim);margin-bottom:8px;}
+.rows{display:flex;flex-direction:column;border-top:1px solid var(--line);}
+.row{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:baseline;padding:10px 6px;border-bottom:1px solid var(--line);font-size:0.84rem;cursor:pointer;}
+.row:hover{background:rgba(57,255,106,0.06);}
+.row .idx{color:var(--fg-dim);font-size:0.72rem;}
+.row .code{color:var(--fg-bright);}
+.row .tag{color:#9fd9ac;font-size:0.76rem;}
+.row .cat{color:var(--amber);font-size:0.64rem;white-space:nowrap;justify-self:end;}
+@media (max-width:560px){.row{grid-template-columns:20px 1fr;}.row .cat{grid-column:1/-1;justify-self:start;margin-top:2px;}}
+
+#modal{display:none;position:fixed;inset:0;z-index:70;align-items:center;justify-content:center;background:rgba(0,0,0,0.75);padding:18px;}
+#modal.show{display:flex;}
+.modalbox{max-width:560px;width:100%;background:var(--bg2);border:1px solid var(--fg-dim);padding:22px 24px;box-shadow:0 0 50px rgba(57,255,106,0.15);max-height:85vh;overflow-y:auto;}
+.modalbox .mcat{color:var(--amber);font-size:0.68rem;letter-spacing:2px;margin-bottom:6px;}
+.modalbox h3{color:var(--fg-bright);margin:0 0 12px;font-size:1.15rem;}
+.modalbox p{font-size:0.88rem;}
+.modalbox .closebtn{margin-top:16px;background:var(--fg-dim);color:#02130a;border:none;font-family:inherit;padding:8px 14px;cursor:pointer;}
+.modalbox .closebtn:hover{background:var(--fg);}
+.redbar{display:inline-block;height:11px;background:#111;margin:0 2px;vertical-align:middle;}
+
+.tl{border-left:2px solid var(--line);margin-left:6px;padding-left:20px;}
+.tl-item{position:relative;margin-bottom:18px;}
+.tl-item::before{content:"";position:absolute;left:-25px;top:5px;width:8px;height:8px;background:var(--amber);}
+.tl-year{color:var(--fg-bright);font-size:0.88rem;margin-bottom:3px;}
+.tl-item p{font-size:0.86rem;}
+
+.links{display:grid;gap:10px;grid-template-columns:1fr 1fr;}
+@media (max-width:600px){.links{grid-template-columns:1fr;}}
+.linkcard{display:block;border:1px solid var(--line);padding:13px 15px;text-decoration:none;}
+.linkcard .name{color:var(--fg-bright);font-size:0.88rem;margin-bottom:4px;}
+.linkcard .desc{color:var(--fg-dim);font-size:0.76rem;}
+.linkcard:hover{border-color:var(--fg);}
+
+#ticker{border:1px solid var(--line);background:var(--panel);padding:10px;font-size:0.68rem;color:var(--fg-dim);align-self:start;height:fit-content;}
+#ticker .hd{color:var(--amber);margin-bottom:8px;letter-spacing:1px;}
+#ticker .line{margin-bottom:8px;border-bottom:1px dashed var(--line);padding-bottom:8px;}
+
+.mprogwrap{height:3px;background:var(--line);margin:-22px -24px 14px;overflow:hidden;}
+.mprog{height:100%;width:0;background:var(--fg);transition:width .4s linear;}
+#toastbox{position:fixed;bottom:16px;right:16px;z-index:90;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--bg2);border:1px solid var(--fg-dim);color:var(--fg-bright);font-size:0.72rem;padding:8px 12px;opacity:0;transform:translateX(20px);animation:toastin .3s forwards, toastout .3s forwards 2.4s;}
+@keyframes toastin{to{opacity:1;transform:translateX(0);}}
+@keyframes toastout{to{opacity:0;}}
+#cursorglow{position:fixed;width:220px;height:220px;border-radius:50%;pointer-events:none;z-index:4;background:radial-gradient(circle,rgba(57,255,106,0.06),transparent 70%);transform:translate(-50%,-50%);left:-999px;top:-999px;}
+.meter{margin-bottom:8px;}
+.meter .lbl{display:flex;justify-content:space-between;font-size:0.62rem;color:var(--fg-dim);margin-bottom:2px;}
+.meter .bar{height:5px;background:#0a1a0d;border:1px solid var(--line);}
+.meter .fill{height:100%;background:var(--fg);width:30%;transition:width .6s ease;}
+#radarwrap{border:1px solid var(--line);margin-top:14px;padding:8px;text-align:center;}
+#radarwrap .lbl{color:var(--amber);font-size:0.64rem;letter-spacing:1px;margin-bottom:6px;}
+.ripple{position:absolute;border-radius:50%;background:rgba(57,255,106,0.35);transform:scale(0);animation:rippleAnim .5s ease-out;pointer-events:none;}
+@keyframes rippleAnim{to{transform:scale(3);opacity:0;}}
+.row,#passform button,.tabs button,.linkcard,.chip,.dnode{position:relative;overflow:hidden;}
+.glitchflick{animation:glitchflick .25s;}
+@keyframes glitchflick{0%,100%{opacity:1;}50%{opacity:0.4;text-shadow:2px 0 var(--red),-2px 0 var(--amber);}}
+footer{margin-top:34px;border-top:1px dashed var(--line);padding-top:14px;color:var(--fg-dim);font-size:0.7rem;}
+</style>
+</head>
+<body>
+
+<canvas id="rain"></canvas>
+<div class="scan"></div>
+<div class="glow"></div>
+<div class="vignette"></div>
+<div id="cursorglow"></div>
+<div id="toastbox"></div>
+
+<div id="gate">
+  <div class="term-box">
+    <pre class="ascii">
+ ____  _____ ____ _        _    ____ ____
+|  _ \| ____/ ___| |      / \  / ___/ ___|
+| | | |  _|| |   | |     / _ \ \___ \___ \
+| |_| | |__| |___| |___ / ___ \ ___) |__) |
+|____/|_____\____|_____/_/   \_\____/____/
+    </pre>
+    <div class="gate-line"><span class="lbl">SYSTEM &gt;</span> restricted terminal — authorization required</div>
+    <div class="gate-line"><span class="lbl">CLEARANCE &gt;</span> enter access code to continue<span class="cursor"></span></div>
+    <form id="passform">
+      <input id="passinput" type="password" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="••••" autofocus>
+      <button type="submit" id="unlockbtn">UNLOCK</button>
+    </form>
+    <div id="err"></div>
+    <div id="attempts"></div>
+  </div>
+</div>
+
+<div id="scare">
+  <div class="skull">☠</div>
+  <h2>INTRUDER DETECTED</h2>
+  <p>TRACE INITIATED · CONNECTION LOGGED · LOCKING TERMINAL</p>
+</div>
+
+<div id="modal">
+  <div class="modalbox">
+    <div class="mprogwrap"><div class="mprog" id="mprog"></div></div>
+    <div class="mcat" id="mcat"></div>
+    <h3 id="mtitle"></h3>
+    <p id="mtag" class="dim"></p>
+    <p id="mdetail"></p>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="closebtn" onclick="document.getElementById('modal').classList.remove('show')">CLOSE [ESC]</button>
+      <button class="closebtn" id="copybtn" style="background:transparent;border:1px solid var(--fg-dim);color:var(--fg-dim);">COPY ID</button>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <h1>// DECLASS_TERMINAL v4.0</h1>
+    <div class="indicators">
+      <span class="ind"><span class="dot g"></span>UPLINK</span>
+      <span class="ind"><span class="dot a"></span>ENCRYPTED</span>
+      <span class="ind"><span class="dot r"></span>REC</span>
+      <span class="ind" id="clockw">00:00:00</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="statbox">CREST紀錄<b>100</b></div>
+    <div class="statbox">畫作檔案<b>50</b></div>
+    <div class="statbox">巨星檔案<b>100</b></div>
+    <div class="statbox">分類<b>12</b></div>
+    <div class="statbox">最早<b>1947</b></div>
+    <div class="statbox">最新<b>2023</b></div>
+    <div class="statbox">權限<b>LV-4</b></div>
+  </div>
+
+  <div class="layout">
+    <div id="sidebar">
+      <div class="dim" style="margin-bottom:8px;letter-spacing:1px;color:var(--amber);">DIRECTORY</div>
+      <div class="tree" id="dirtree">
+        <div class="hi">/ROOT</div>
+        <div class="dnode" data-cat="MIND">├─ /MIND_CONTROL</div>
+        <div class="dnode" data-cat="PSYCHIC">├─ /PSYCHIC_OPS</div>
+        <div class="dnode" data-cat="AIR">├─ /AIR_SPACE</div>
+        <div class="dnode" data-cat="SIGINT">├─ /SIGINT</div>
+        <div class="dnode" data-cat="COVERT">├─ /COVERT_ACTION</div>
+        <div class="dnode" data-cat="LATAM">├─ /LATAM</div>
+        <div class="dnode" data-cat="ASIA">├─ /ASIA</div>
+        <div class="dnode" data-cat="COLDWAR">├─ /COLDWAR_EST</div>
+        <div class="dnode" data-cat="TERROR">├─ /WAR_ON_TERROR</div>
+        <div class="dnode" data-cat="UFO">├─ /UAP_UFO</div>
+        <div class="dnode" data-cat="JFK">├─ /JFK</div>
+        <div class="dnode" data-cat="MISC">└─ /MISC</div>
+      </div>
+      <div class="dim" style="margin:14px 0 6px;letter-spacing:1px;color:var(--amber);">MOUNTED DRIVES</div>
+      <div class="tree">
+        <div class="dnode" data-gotab="watch">▸ CITY_WATCH.DB</div>
+        <div class="dnode" data-gotab="museum">▸ MUSEUM_FILES.DB</div>
+        <div class="dnode" data-gotab="celeb">▸ CELEB_FILES.DB</div>
+      </div>
+      <div id="dirpulse" class="dim" style="margin-top:12px;font-size:0.64rem;"></div>
+      <div class="dim" style="margin:14px 0 6px;letter-spacing:1px;color:var(--amber);">SYSTEM LOAD</div>
+      <div class="meter"><div class="lbl"><span>CPU</span><span>LIVE</span></div><div class="bar"><div class="fill" id="m-cpu"></div></div></div>
+      <div class="meter"><div class="lbl"><span>MEM</span><span>LIVE</span></div><div class="bar"><div class="fill" id="m-mem"></div></div></div>
+      <div class="meter"><div class="lbl"><span>NET</span><span>LIVE</span></div><div class="bar"><div class="fill" id="m-net"></div></div></div>
+      <div id="radarwrap"><div class="lbl">UPLINK RADAR</div><canvas id="radar" width="140" height="140"></canvas></div>
+      <div class="stamp-row" style="margin-top:14px;"><div class="stamp">TOP SECRET</div></div>
+      <div class="stamp-row"><div class="stamp amber">EYES ONLY</div></div>
+    </div>
+
+    <main>
+      <div class="tabs">
+        <button data-tab="brief" class="active">BRIEFING</button>
+        <button data-tab="index">PROGRAM_INDEX [100]</button>
+        <button data-tab="tl">TIMELINE</button>
+        <button data-tab="src">SOURCES</button>
+        <button data-tab="watch">CITY_WATCH</button>
+        <button data-tab="museum">MUSEUM_FILES</button>
+        <button data-tab="celeb">CELEB_FILES</button>
+        <button data-tab="shell">SHELL</button>
+      </div>
+
+      <div class="pane active" id="pane-brief">
+        <h2 class="sec">## BRIEFING.TXT</h2>
+        <p>美國中央情報局依據第 13526 號行政命令與資訊自由法，逐年將數十年前的機密紀錄解密，存入「CIA 檔案檢索工具」（CREST）。此終端機彙整了 100 個曾被解密、部分解密或因訴訟而曝光的計畫代號與事件。另外收錄了兩組純娛樂性質的都市傳說檔案庫，以及一個虛構示範用的市政監控介面。</p>
+        <div class="typeline"><p class="dim">&gt; 點選 PROGRAM_INDEX / MUSEUM_FILES / CELEB_FILES 中任一筆紀錄可展開詳細說明，左側目錄與掛載磁碟皆可點擊快速跳轉。</p></div>
+        <div style="margin:16px 0;"><span class="redbar" style="width:60px;"></span><span class="redbar" style="width:110px;"></span><span class="redbar" style="width:40px;"></span></div>
+        <p class="dim">輸入 SHELL 分頁可用指令查詢資料庫。</p>
+      </div>
+
+      <div class="pane" id="pane-index">
+        <h2 class="sec">## PROGRAM_INDEX</h2>
+        <input id="search" type="text" placeholder="搜尋代號、標籤或關鍵字…">
+        <div class="chips" id="chips"></div>
+        <div id="count"></div>
+        <div class="rows" id="rows"></div>
+      </div>
+
+      <div class="pane" id="pane-tl">
+        <h2 class="sec">## TIMELINE</h2>
+        <div class="tl" id="tlbox">
+          <div class="tl-item"><div class="tl-year">1947</div><p>國家安全法通過，中央情報局正式成立。</p></div>
+          <div class="tl-item"><div class="tl-year">1948</div><p>空軍成立 SIGN 計畫，展開最早的不明飛行物調查。</p></div>
+          <div class="tl-item"><div class="tl-year">1950</div><p>BLUEBIRD 計畫啟動，CIA 首次系統性研究心智控制技術。</p></div>
+          <div class="tl-item"><div class="tl-year">1953</div><p>MKULTRA 計畫獲准執行，展開長達 20 年的秘密人體實驗。</p></div>
+          <div class="tl-item"><div class="tl-year">1954</div><p>瓜地馬拉政變（PBSUCCESS）推翻民選政府。</p></div>
+          <div class="tl-item"><div class="tl-year">1960</div><p>U-2 偵察機於蘇聯領空遭擊落，鮑爾斯被俘。</p></div>
+          <div class="tl-item"><div class="tl-year">1961</div><p>豬玀灣入侵行動失敗，古巴政策全面轉向秘密行動。</p></div>
+          <div class="tl-item"><div class="tl-year">1963</div><p>甘迺迪總統遇刺身亡，相關檔案日後成為解密焦點。</p></div>
+          <div class="tl-item"><div class="tl-year">1973</div><p>局長下令銷毀 MKULTRA 紀錄，同年彙整「家族珠寶」報告。</p></div>
+          <div class="tl-item"><div class="tl-year">1975</div><p>邱奇委員會與派克委員會展開情報機構濫權調查。</p></div>
+          <div class="tl-item"><div class="tl-year">1983</div><p>「神箭 83」北約演習一度引發蘇聯誤判核戰風險。</p></div>
+          <div class="tl-item"><div class="tl-year">1989</div><p>柏林圍牆倒塌，情報圈隨即檢討對東歐變局的預判。</p></div>
+          <div class="tl-item"><div class="tl-year">1991</div><p>蘇聯解體，國家情報評估重新聚焦後冷戰局勢。</p></div>
+          <div class="tl-item"><div class="tl-year">1992</div><p>甘迺迪刺殺紀錄法通過，相關聯邦檔案逐步集中公開。</p></div>
+          <div class="tl-item"><div class="tl-year">1995</div><p>第 12958 號行政命令建立「25 年自動解密」制度，同年 STARGATE 計畫終止。</p></div>
+          <div class="tl-item"><div class="tl-year">2001</div><p>911 恐怖攻擊事件發生，情報失誤檢討促成重大改革。</p></div>
+          <div class="tl-item"><div class="tl-year">2007</div><p>CIA 公開「家族珠寶」報告與 OXCART 計畫檔案，紀念成立 60 周年。</p></div>
+          <div class="tl-item"><div class="tl-year">2011</div><p>海豹部隊突襲巴基斯坦擊斃賓拉登，相關文件陸續解密。</p></div>
+          <div class="tl-item"><div class="tl-year">2014</div><p>參議院情報委員會公布「酷刑報告」摘要，揭露 911 後偵訊計畫。</p></div>
+          <div class="tl-item"><div class="tl-year">2017</div><p>CREST 資料庫全面上線，1300 萬頁檔案首次可免費全文檢索。</p></div>
+          <div class="tl-item"><div class="tl-year">2023</div><p>COVID-19 起源情報評估摘要依國會要求解密公布。</p></div>
+        </div>
+      </div>
+
+      <div class="pane" id="pane-src">
+        <h2 class="sec">## SOURCES</h2>
+        <div class="links">
+          <a class="linkcard" href="https://www.cia.gov/readingroom/" target="_blank" rel="noopener"><div class="name">CIA 電子閱覽室</div><div class="desc">cia.gov/readingroom — 官方解密文件檢索</div></a>
+          <a class="linkcard" href="https://www.archives.gov/research" target="_blank" rel="noopener"><div class="name">國家檔案館 NARA</div><div class="desc">archives.gov/research — 聯邦紀錄保存機構</div></a>
+          <a class="linkcard" href="https://nsarchive.gwu.edu/" target="_blank" rel="noopener"><div class="name">國家安全檔案館</div><div class="desc">nsarchive.gwu.edu — GWU 研究機構</div></a>
+          <a class="linkcard" href="https://www.cia.gov/readingroom/collection/crest-25-year-program-archive" target="_blank" rel="noopener"><div class="name">CREST 25 年計畫檔案</div><div class="desc">官方 CREST 專屬入口頁面</div></a>
+        </div>
+      </div>
+
+      <div class="pane" id="pane-watch">
+        <h2 class="sec">## CITY_WATCH.DB — 市政監控模擬</h2>
+        <div class="warn">⚠ 本區塊所有姓名代號、案件、地點與統計數字皆為虛構示範內容，不對應任何真實人物或案件，純屬介面情境展示，與真實執法或監控系統無關。</div>
+        <div class="stats">
+          <div class="statbox">線上攝影機<b>482</b></div>
+          <div class="statbox">本月通報<b>37</b></div>
+          <div class="statbox">破案率<b>61%</b></div>
+          <div class="statbox">巡邏單位<b>14</b></div>
+        </div>
+        <input id="wsearch" type="text" placeholder="搜尋虛構代號、轄區或嫌疑…">
+        <div id="wcount" class="dim" style="font-size:0.72rem;margin-bottom:8px;"></div>
+        <div class="rows" id="wrows"></div>
+      </div>
+
+      <div class="pane" id="pane-museum">
+        <h2 class="sec">## MUSEUM_FILES — 50 幅名畫都市傳說</h2>
+        <div class="warn">⚠ 以下為網路流傳、未經證實的「都市傳說」整理，純屬娛樂與流行文化記錄，並非學術或事實定論，請勿當真。</div>
+        <input id="msearch" type="text" placeholder="搜尋畫作或畫家…">
+        <div id="mcount" class="dim" style="font-size:0.72rem;margin-bottom:8px;"></div>
+        <div class="rows" id="mrows"></div>
+      </div>
+
+      <div class="pane" id="pane-celeb">
+        <h2 class="sec">## CELEB_FILES — 100 位巨星傳聞檔案</h2>
+        
+        <input id="csearch" type="text" placeholder="搜尋藝人姓名…">
+        <div id="ccount" class="dim" style="font-size:0.72rem;margin-bottom:8px;"></div>
+        <div class="rows" id="crows"></div>
+      </div>
+
+      <div class="pane" id="pane-shell">
+        <h2 class="sec">## SHELL</h2>
+        <p class="dim">輸入 help 查看可用指令（純前端模擬，僅供瀏覽本頁內容）</p>
+        <div id="shellout" style="border:1px solid var(--line);background:#000;padding:12px;height:240px;overflow-y:auto;font-size:0.8rem;margin-bottom:10px;"></div>
+        <form id="shellform" style="display:flex;gap:8px;">
+          <span style="align-self:center;color:var(--fg-dim);">&gt;</span>
+          <input id="shellin" type="text" autocomplete="off" style="flex:1;background:#000;border:1px solid var(--fg-dim);color:var(--fg-bright);font-family:inherit;padding:8px 10px;">
+        </form>
+      </div>
+    </main>
+
+    <div id="ticker">
+      <div class="hd">LIVE FEED</div>
+      <div id="tickerlines"></div>
+    </div>
+  </div>
+
+  <footer>本頁為公開歷史資訊整理與娛樂性內容，非 CIA 或任何政府機關之官方網站。密碼鎖、入侵警報、市政監控、名畫與巨星傳聞等單元皆為介面情境或娛樂創作，不具備真實資安防護功能，亦不構成事實指控。</footer>
+</div>
+
+<script>
+const DATA = [
+["MKULTRA","MIND","1953–1973 心智控制與藥物實驗","CIA核准的秘密人體實驗計畫，測試LSD、催眠、電擊等方法企圖開發審訊與精神控制技術，1973年時任局長下令銷毀大部分檔案，僅存少數財務紀錄流出。"],
+["MKNAOMI","MIND","與陸軍合作的生化武器研究","與陸軍化學兵團合作研發生物與化學製劑，用於秘密行動中使毒物難以被偵測，1970年代國會聽證後部分文件公開。"],
+["MKDELTA","MIND","MKULTRA技術的海外運用規範","規範如何在海外、非美國公民身上運用MKULTRA研發出的技術，屬於計畫中管控最嚴的分支之一。"],
+["MKSEARCH","MIND","MKULTRA後續的藥物控制研究","MKULTRA正式終止後仍持續進行的藥物與行為控制研究，聚焦於如何操控人類意識與記憶。"],
+["MKOFTEN","MIND","精神藥物化合物的人體與動物測試","與陸軍合作測試精神藥物對動物與人類行為的影響，部分受試者並不知情自己正被實驗。"],
+["ARTICHOKE","MIND","1950年代初期的催眠偵訊研究","二戰後最早的偵訊研究計畫之一，探討催眠、藥物與心理壓力能否迫使對象吐露資訊，後併入MKULTRA。"],
+["BLUEBIRD","MIND","CIA最早的心智控制計畫，1950","CIA成立後第一個正式的心智控制計畫，目標是防止己方人員被策反審訊，同時研究進攻性偵訊技術。"],
+["MIDNIGHT CLIMAX","MIND","透過秘密安全屋進行的LSD測試","在舊金山與紐約租下秘密公寓，誘使不知情對象服用LSD並透過單面鏡觀察紀錄反應，為MKULTRA最具爭議的子計畫之一。"],
+["QKHILLTOP","MIND","對中共偵訊技術的研究專案","研究韓戰期間中國大陸對戰俘使用的「洗腦」偵訊技巧，試圖理解並複製其方法。"],
+["CHAOS","COVERT","對反戰運動人士的國內監控","詹森與尼克森政府時期，CIA在國內違法監控反戰與民權運動人士，違反其海外情報蒐集的授權範圍。"],
+["FAMILY JEWELS","COVERT","1973年內部濫權行為彙整報告","1973年局長要求全局彙報所有可能違法或逾越授權的活動，內容涵蓋暗殺討論、國內監控與郵件攔截，2007年主動公開。"],
+["MHCHAOS","COVERT","CHAOS行動的檔案代號變體","CHAOS行動在部分檔案中使用的替代代號，內容與國內監控行動重疊。"],
+["RESISTANCE","MIND","抗偵訊行為的研究專案","研究如何訓練己方人員抵抗敵方偵訊與心理操控，屬於防禦性質的行為研究。"],
+["STARGATE","PSYCHIC","1970s–1995 遙視研究計畫","冷戰時期資助的超感官知覺研究，嘗試以遙視方式蒐集蘇聯軍事基地情報，1995年中情局評估效果有限後終止。"],
+["GRILL FLAME","PSYCHIC","陸軍與CIA早期超感官研究","陸軍情報單位主導的早期遙視實驗代號，後續移交並與CIA合作擴大研究規模。"],
+["SUN STREAK","PSYCHIC","遙視計畫的後期階段代號","Stargate計畫後期階段的代號，持續招募「敏感者」進行目標描述測試。"],
+["CENTER LANE","PSYCHIC","遙視研究的過渡期計畫","介於早期與後期遙視研究之間的過渡計畫，調整實驗方法與評估標準。"],
+["SCANATE","PSYCHIC","史丹佛研究所最早的遙視測試","史丹佛研究所於1970年代為CIA執行的最早期遙視可行性測試，奠定後續計畫基礎。"],
+["OXCART","AIR","馬赫3高速偵察機A-12計畫","洛克希德為CIA研發的A-12偵察機，飛行速度可達三倍音速，用於冷戰高空偵察，技術後來發展為空軍SR-71。"],
+["AQUATONE","AIR","U-2偵察機研發代號","U-2高空偵察機的研發與部署代號，1960年鮑爾斯座機在蘇聯境內被擊落的事件即屬此計畫。"],
+["CORONA","AIR","第一代光學偵察衛星系列","美國第一代光學偵察衛星系列，以膠捲回收艙取得蘇聯境內設施影像，1995年解密徹底改寫冷戰情報史研究。"],
+["GAMBIT","AIR","KH-7/KH-8高解析度衛星計畫","接續CORONA的高解析度偵察衛星計畫，能拍攝更清晰的特定目標影像。"],
+["HEXAGON","AIR","KH-9「大鳥」衛星計畫","代號大鳥的KH-9衛星計畫，單次任務可涵蓋大範圍地表成像，2011年解密展示其龐大實體。"],
+["AZORIAN","COVERT","打撈蘇聯潛艦的格洛瑪探險者行動","CIA與霍華休斯合作，以深海採礦為掩護打撈1968年沉沒的蘇聯K-129潛艦，部分打撈過程仍成謎。"],
+["IVY BELLS","SIGINT","海底電纜竊聽行動","潛艦潛入鄂霍次克海，在海底電纜上安裝竊聽裝置截取蘇聯軍事通訊，1980年代因間諜洩密而曝光。"],
+["AJAX","COVERT","1953年支持伊朗國王的政變行動","1953年策動推翻伊朗民選首相摩薩台、鞏固巴勒維國王政權的行動，長期影響美伊關係，CIA於1990年代末正式承認參與。"],
+["PBSUCCESS","COVERT","1954年瓜地馬拉政變行動","1954年策動推翻瓜地馬拉民選總統阿本斯的軍事政變，以防堵共產主義擴散為名。"],
+["ZAPATA","COVERT","1961年豬玀灣入侵行動","支持古巴流亡人士進攻豬玀灣企圖推翻卡斯楚，行動失敗成為甘迺迪政府的重大外交挫敗。"],
+["MONGOOSE","COVERT","針對卡斯楚古巴的秘密行動","豬玀灣失敗後成立的秘密行動總稱，持續對古巴進行破壞、宣傳與暗殺卡斯楚的嘗試。"],
+["ZR/RIFLE","COVERT","暗殺卡斯楚的計畫代號","專門規劃對外國領導人（包括卡斯楚）執行暗殺的秘密計畫代號。"],
+["QJWIN","COVERT","職業殺手招募計畫","為執行暗殺任務而招募的職業罪犯代號，屬MONGOOSE行動下的執行層級計畫。"],
+["CONDOR","LATAM","南美情報共享與鎮壓網路","1970年代南美多國獨裁政權合作追緝、綁架並處決異議人士的跨國行動，美國情報機關被指提供協助與資訊。"],
+["GLADIO","COLDWAR","北約反共「潛伏」網路","北約為因應蘇聯入侵預先在西歐各國建立的秘密潛伏反抗網路，1990年代曝光後引發是否涉入國內恐攻的爭議。"],
+["NORTHWOODS","COVERT","1962年對古巴的偽旗行動提案","1962年參謀首長聯席會議提出、最終遭甘迺迪否決的偽旗行動構想，企圖製造對古巴採取軍事行動的藉口。"],
+["PHOENIX","ASIA","越戰時期反叛亂偵訊計畫","越戰時期針對南越共產黨基層組織的識別與剷除計畫，被批評導致大規模未經審判的處決。"],
+["PAPERCLIP","COLDWAR","招募前納粹科學家的計畫","二戰後秘密招募上千名德國科學家（含前納粹黨員）赴美，協助發展火箭與航太技術，阿波羅計畫的馮布朗即為其一。"],
+["MERLIN","COVERT","對伊朗的核藍圖欺敵行動","2000年代初期CIA透過一名前蘇聯科學家，蓄意將帶有缺陷的核武設計圖交給伊朗，企圖拖延其核武發展。"],
+["BERLIN TUNNEL","SIGINT","竊聽蘇聯電話線的秘密地道","美英情報單位挖掘地道竊聽東柏林的蘇聯軍用電話線，1956年因雙面間諜洩密而被蘇聯發現並公開揭露。"],
+["JENNIFER","COVERT","格洛瑪探險者行動的保密等級","用來限制AZORIAN行動知情範圍的特殊保密分類，僅極少數人員獲准了解完整細節。"],
+["TIMBER WIND","MISC","SDI時期核子火箭推進研究","雷根政府星戰計畫架構下研究的核子火箭推進技術，目標是縮短太空武器系統的運送時間。"],
+["HAVE BLUE","AIR","F-117隱形戰機的原型計畫","洛克希德臭鼬工廠打造的隱形技術驗證機，證明雷達匿蹤外型可行，直接催生F-117夜鷹戰機。"],
+["SENIOR TREND","AIR","F-117隱形戰機研發代號","F-117匿蹤攻擊機的正式研發與測試代號，直到1988年才對外公開其存在。"],
+["CONSTANT PEG","AIR","使用擄獲米格機的秘密訓練","在內華達州秘密基地使用擄獲的蘇聯米格戰機訓練美軍飛行員，使其熟悉假想敵真實性能。"],
+["ECHELON","SIGINT","多國訊號情報共享網路","美、英、加、澳、紐五眼聯盟共同運作的全球訊號情報蒐集網路，被指可攔截民間通訊與衛星傳輸。"],
+["SHAMROCK","SIGINT","冷戰時期電報攔截計畫","NSA與電報公司合作，長期攔截進出美國的國際電報，1975年邱奇委員會調查後終止。"],
+["MINARET","SIGINT","未經授權的國內通訊監控名單","未經法院授權、監控特定美國公民國際通訊的國安局名單計畫，對象包含反戰人士與民權領袖。"],
+["VENONA","SIGINT","二戰時期蘇聯密電破譯計畫","二戰與冷戰初期破譯蘇聯外交與情報密電的長期計畫，協助確認多起美國境內間諜案，1995年才正式解密。"],
+["MOCKINGBIRD","COVERT","傳聞中冷戰時期對媒體的影響行動","傳聞CIA於冷戰時期透過資助或滲透方式影響國內外新聞媒體報導方向，其確切規模至今仍有爭議。"],
+["COINTELPRO","COVERT","FBI對異議團體的干擾行動","FBI（而非CIA）長期對民權運動、左翼團體進行監控、滲透與抹黑的秘密計畫，1971年因檔案遭竊而曝光。"],
+["CORONA KH-4","AIR","CORONA衛星的後期型號","CORONA衛星系列後期的改良型號，解析度與回收成功率皆大幅提升。"],
+["TALENT KEYHOLE","AIR","衛星影像的保密分類系統","用於管控衛星影像情報流通範圍的特殊保密分類系統，限制知情人員數量。"],
+["MOONDUST","MISC","外國太空殘骸回收計畫","負責追蹤、回收墜落或再入大氣層之外國（主要是蘇聯）太空物體殘骸的計畫。"],
+["BLUE BOOK","UFO","1952–1969空軍UFO調查計畫","美國空軍自1952年起系統化調查不明飛行物目擊報告的計畫，1969年結案並認定多數案例可被常規解釋。"],
+["SIGN","UFO","1948年最早的空軍UFO研究","1948年美國空軍最早成立的UFO調查單位，部分人員私下認為目擊物體可能具有地外來源。"],
+["GRUDGE","UFO","SIGN之後的空軍UFO計畫","接續SIGN的空軍UFO研究計畫，基調轉趨保守，傾向以心理與常規現象解釋目擊事件。"],
+["AATIP","UFO","近年五角大廈不明現象研究計畫","2007至2012年間五角大廈資助、重新調查不明空中現象的研究計畫，2017年因媒體報導而曝光其存在。"],
+["ROSWELL INCIDENT","UFO","1947年殘骸回收事件相關紀錄","1947年新墨西哥州發現不明殘骸的事件，軍方先後以飛碟與氣象氣球解釋，成為UFO文化最知名的起源故事。"],
+["BAY OF PIGS HISTORY","COVERT","CIA自行撰寫的事後檢討報告","CIA內部委託撰寫、對豬玀灣行動失敗原因進行坦率檢討的官方史，部分內容延遲數十年才對外公開。"],
+["CUBAN MISSILE CRISIS","COLDWAR","1962年總統每日情報簡報","古巴飛彈危機期間呈交總統的每日機密情報簡報，記錄美蘇對峙十三天的決策過程。"],
+["CHILE 1973 COUP","LATAM","美國在皮諾契政變中的角色電報","記錄美方在智利皮諾契將軍政變推翻民選總統阿葉德前後所扮演角色的外交電報與情報紀錄。"],
+["ARGENTINA DIRTY WAR","LATAM","失蹤者時代的情報共享紀錄","1976至1983年軍政府鎮壓異議人士期間，美國與阿根廷情報機關之間的合作與資訊往來紀錄。"],
+["GUATEMALA GENOCIDE","LATAM","內戰時期軍事援助紀錄","瓜地馬拉內戰期間美國對該國軍方提供軍援與情報合作的紀錄，部分內容涉及後來認定為種族滅絕的行動。"],
+["EL SALVADOR CABLES","LATAM","1980年代反叛亂支援紀錄","薩爾瓦多內戰期間，美國對政府軍提供反叛亂訓練與資金支援的外交與情報電報。"],
+["NICARAGUA CONTRA","LATAM","伊朗門事件的前身行動","雷根政府秘密資助尼加拉瓜反政府游擊隊的行動，後續演變為涉及伊朗軍售的伊朗門事件。"],
+["INDONESIA 1965-66","ASIA","大屠殺時期美方情報往來","1965至66年印尼反共大屠殺期間，美國大使館與情報單位掌握並交換相關資訊的往來電報。"],
+["CAMBODIA BOMBING","ASIA","越戰時期秘密空襲紀錄","越戰期間美軍對柬埔寨境內胡志明小道進行的秘密轟炸行動，長期未對國會與公眾公開。"],
+["LAOS SECRET WAR","ASIA","CIA規模最大的準軍事行動","CIA史上規模最大的準軍事行動，長期訓練並資助寮國苗族部隊對抗北越與巴特寮勢力。"],
+["IRAN-CONTRA","COVERT","軍售換人質資金醜聞","雷根政府秘密對伊朗出售武器換取人質釋放，並將所得資金轉供尼加拉瓜反抗軍，1986年曝光後成為重大醜聞。"],
+["U-2 INCIDENT","COLDWAR","1960年鮑爾斯被擊落事件","1960年美軍飛行員鮑爾斯駕駛U-2偵察機在蘇聯領空遭擊落被俘，美蘇高峰會因此破局。"],
+["PENTAGON PAPERS","MISC","洩露的越戰史文件（國防部）","國防部內部委託撰寫、記錄越戰決策全貌的機密史，1971年遭洩露給媒體，引發新聞自由與國家機密的憲法爭議。"],
+["JFK RECORDS COLLECTION","JFK","華倫委員會與HSCA檔案","依1992年國會立法彙整的甘迺迪遇刺案相關聯邦檔案，包含華倫委員會與眾院特別委員會調查紀錄。"],
+["ARRB RELEASES","JFK","1990年代審查委員會釋出的紀錄","1990年代獨立設立的審查委員會逐批公開先前遭保留的甘迺迪案相關情報與執法紀錄。"],
+["LUMUMBA PLOT","COVERT","剛果秘密行動規劃紀錄","記錄CIA考慮對剛果獨立運動領袖盧蒙巴採取暗殺行動的規劃文件，盧蒙巴後於1961年遇害。"],
+["TRUJILLO SUPPORT","COVERT","1961年多明尼加相關行動","記錄美方與反對多明尼加獨裁者特魯希略陣營之間聯繫的情報文件，特魯希略於1961年遇刺身亡。"],
+["DIEM COUP CABLES","ASIA","1963年南越政變電報","南越總統吳廷琰遭軍事政變推翻並遇害前後，美國駐西貢使館與華府之間的往來電報。"],
+["AFGHAN-SOVIET WAR","COLDWAR","1980年代援助聖戰者的紀錄","1980年代CIA透過巴基斯坦秘密援助阿富汗聖戰者對抗蘇聯占領軍的行動紀錄，規模為當時最大秘密援助計畫之一。"],
+["ABLE ARCHER 83","COLDWAR","核戰危機北約演習評估","1983年北約一場核武指揮演習一度被蘇聯誤判為真實攻擊前兆，事後情報評估檢討當時誤判風險有多高。"],
+["BERLIN WALL ESTIMATES","COLDWAR","1989年情勢評估報告","柏林圍牆倒塌前後，美國情報圈對東歐局勢劇變速度與走向的評估報告，事後被檢討是否低估變化速度。"],
+["SOVIET COLLAPSE ESTIMATES","COLDWAR","1990年代初期國家情報評估","針對蘇聯解體可能性與後續走向所做的國家情報評估，同樣被檢討是否預見不足。"],
+["GULF WAR ESTIMATES","MISC","1990–91伊拉克情勢評估","波灣戰爭前後，對伊拉克軍力與區域情勢所做的情報評估報告。"],
+["IRAQ WMD ESTIMATES","TERROR","2003戰前大規模毀滅武器評估","伊拉克戰爭開戰前，情報圈對海珊政權擁有大規模毀滅性武器所做的評估，事後證實多處結論有誤，引發情報改革。"],
+["9/11 COMMISSION DOCS","TERROR","攻擊前情報失誤相關文件","911恐攻後獨立調查委員會彙整的情報失誤分析文件，檢視攻擊前各機關未能有效串聯線索的原因。"],
+["ABBOTTABAD DOCUMENTS","TERROR","2011年突襲繳獲的資料","2011年美軍突襲賓拉登藏身處後繳獲的大量文件與電子資料，部分內容陸續分批解密公開。"],
+["BIN LADEN'S BOOKSHELF","TERROR","突襲後公開的閱讀資料","從賓拉登藏身處繳獲文件中挑選公開的一批閱讀材料，內容涵蓋政治、陰謀論與蓋達組織內部通訊。"],
+["CIA TORTURE REPORT","TERROR","參議院偵訊計畫調查報告","2014年參議院情報委員會公布的加強偵訊技術調查報告摘要，揭露911後秘密拘留計畫中的爭議手法。"],
+["BLACK SITES PROGRAM","TERROR","911後秘密拘留設施紀錄","911後CIA在多國設立秘密拘留設施、對恐怖嫌疑人進行偵訊的計畫，相關地點與手法長期保密。"],
+["GUANTANAMO FILES","TERROR","軍事委員會相關文件","關塔那摩灣拘留中心軍事委員會審理恐怖嫌疑人案件所產生的相關文件與聽證紀錄。"],
+["DRONE LEGAL MEMOS","TERROR","定點清除行動的法律授權文件","司法部與行政部門內部為授權無人機定點清除行動（包含針對美國公民）所撰寫的法律意見書。"],
+["NEPTUNE SPEAR AAR","TERROR","賓拉登突襲規劃事後報告","2011年海豹部隊突襲賓拉登藏身處行動後的內部檢討報告，記錄行動規劃與執行細節。"],
+["COVID ORIGINS ASSESSMENT","MISC","2023年解密情報摘要","2023年依國會要求解密的情報圈摘要評估，整理各機關對新冠病毒起源看法分歧之處。"],
+["UAP PENTAGON REPORTS","UFO","近年不明異常現象評估報告","近年五角大廈與國家情報總監辦公室依法向國會提交的不明異常現象年度評估報告。"],
+["BIN LADEN EARLY FILES","TERROR","2001年以前的追蹤報告","911事件前CIA對賓拉登與蓋達組織動向的追蹤報告，事後被納入檢討情報失誤的範圍。"],
+["KISSINGER TRANSCRIPTS","COLDWAR","國務院／國安會通話紀錄","季辛吉擔任國安顧問與國務卿期間的電話通話紀錄，記錄多項重大外交決策的幕後對話，2000年代陸續解密。"],
+["KATYN MASSACRE REPORT","MISC","二戰時期蘇聯暴行評估","美方對二戰期間蘇聯處決數千名波蘭軍官的卡廷森林屠殺事件所做的情報評估，冷戰時期曾長期保密以免影響對蘇關係。"],
+["NORTH KOREA ESTIMATES","MISC","數十年核擴散評估紀錄","數十年來美國情報圈針對北韓核武與飛彈能力演變所做的持續性評估報告。"],
+["CHINA NORMALIZATION","COLDWAR","1970年代中美開放相關電報","尼克森政府推動美中關係正常化過程中的秘密外交電報，包含季辛吉秘訪北京的籌備紀錄。"],
+["CAMP DAVID BRIEFINGS","MISC","1978以埃談判支援簡報","卡特政府促成以色列與埃及和談期間，提供予談判團隊的情報簡報資料。"],
+["CHURCH COMMITTEE REPORT","COVERT","1975–76參議院情報濫權調查","參議院委員會對情報機關濫權行為（含暗殺計畫、國內監控）進行的大規模調查，奠定後續情報監督法制基礎。"],
+["PIKE COMMITTEE REPORT","COVERT","同期眾議院情報調查報告","同一時期眾議院進行的平行調查，內容更為尖銳，報告最終遭眾議院投票封存，僅部分內容經洩露流出。"],
+["CREST DECLASS LOGS","MISC","25年計畫釋出紀錄的後設資料索引","記錄CREST資料庫歷年分批釋出文件數量與時間的後設資料索引，供研究者追蹤解密進度。"]
+];
+const CATS = ["ALL","MIND","PSYCHIC","AIR","SIGINT","COVERT","LATAM","ASIA","COLDWAR","TERROR","UFO","JFK","MISC"];
+
+const PAINTINGS = [
+["蒙娜麗莎","達文西","傳說畫中藏著達文西本人容貌的自畫像"],
+["吶喊","孟克","都市傳說指背景紅色天空源自真實火山灰異象"],
+["格爾尼卡","畢卡索","傳聞畫中動物與人物排列暗藏死亡人數密碼"],
+["最後的晚餐","達文西","傳說牆上窗戶與手勢暗藏非官方宗教訊息"],
+["戴珍珠耳環的少女","維梅爾","模特兒身分成謎，傳聞是畫家暗戀的對象"],
+["星夜","梵谷","都市傳說認為星體排列對應真實天文事件"],
+["美國哥德式","格蘭特·伍德","傳聞畫中農夫原型其實是畫家的牙醫"],
+["記憶的堅持","達利","傳說融化的時鐘預言了相對論的提出"],
+["人間樂園","波希","傳聞畫面隱藏煉金術與末日預言符號"],
+["華盛頓橫渡德拉瓦河","洛伊茲","傳聞船上旗幟與人物排列是後世杜撰"],
+["惠斯勒的母親","惠斯勒","傳聞畫中模特兒其實並非畫家母親本人"],
+["宮娥","維拉斯奎茲","傳聞鏡中反射的國王王后其實另有畫作"],
+["維納斯的誕生","波提切利","傳說貝殼比例暗藏黃金比例密碼"],
+["阿爾諾菲尼的婚禮","范艾克","傳聞背景鏡中藏有第三人身影"],
+["農神吞噬其子","哥雅","傳說畫作反映畫家晚年精神失常前兆"],
+["杜爾博士的解剖學課","林布蘭","傳聞畫中屍體身分被刻意隱瞞"],
+["乾草車","康斯塔伯","傳說畫中河流位置與真實地點不符，藏有訊息"],
+["印象·日出","莫內","傳聞標題其實是記者嘲諷之詞被誤用成派別名稱"],
+["大碗島的星期天下午","秀拉","傳說點描技法暗藏摩斯密碼"],
+["玩紙牌的人","塞尚","傳聞曾被用作秘密交易的辨識暗號"],
+["夜鷹","愛德華·霍普","傳說畫中咖啡店原型其實不存在，純屬虛構"],
+["克里斯蒂娜的世界","魏斯","傳聞畫中女子其實早已離世多年"],
+["夜巡","林布蘭","傳說畫作原為白天場景，因多年變色才被誤稱夜巡"],
+["自由引導人民","德拉克洛瓦","傳聞畫中女神原型是畫家秘密情人"],
+["1808年5月3日","哥雅","傳說受害者面孔與真實歷史人物吻合"],
+["理性沉睡產生怪物","哥雅","傳聞版畫暗藏共濟會符號"],
+["星夜下的自畫像","梵谷","傳聞耳朵傷勢細節與官方說法不符"],
+["構圖第八號","康丁斯基","傳聞幾何圖形對應特定音樂頻率密碼"],
+["拾穗","米勒","傳說三位農婦其實是同一人的三個人生階段"],
+["呼喊的教皇","法蘭西斯·培根","傳說靈感來自一張從未公開的精神病院照片"],
+["睡蓮系列","莫內","傳聞池塘位置暗藏畫家私人藏寶地點"],
+["吻","克林姆","傳說金箔底下藏有未公開的草稿人像"],
+["戴荊棘項鍊的自畫像","芙烈達·卡蘿","傳聞項鍊符號暗藏古代曆法預言"],
+["父親的肖像","惠斯勒","傳聞與其母親肖像其實共用同一張底稿"],
+["大宮女","安格爾","傳聞人體比例刻意拉長以藏入隱藏圖形"],
+["自由女神像設計手稿","巴特勒迪","傳聞臉孔原型另有真實人物，非官方說法"],
+["戴帽子的女人","馬諦斯","傳說色塊配置暗藏一封未公開情書"],
+["黑方塊","馬列維奇","傳聞黑色顏料底下藏著另一幅完整畫作"],
+["亞維儂的少女","畢卡索","傳說面具靈感來自一場秘密通靈儀式"],
+["神奈川沖浪裏","葛飾北齋","傳聞浪花形狀對應一場真實海嘯紀錄"],
+["拿破崙越過聖伯納山","大衛","傳聞馬匹姿勢暗藏行軍部署密碼"],
+["夜間咖啡館","梵谷","傳說燈光顏色對應畫家精神狀態的惡化程度"],
+["持花的女人","莫迪里亞尼","傳聞所有模特兒眼睛留白是刻意的詛咒"],
+["戴珍珠項鍊的女子","維梅爾","傳說與戴珍珠耳環的少女其實是姊妹作"],
+["吶喊之橋","孟克（傳聞變體）","傳說存在一幅從未公開的吶喊第二版本"],
+["戴頭巾的自畫像","林布蘭","傳聞頭巾花紋藏有家族徽章密碼"],
+["午後的和諧","馬諦斯","傳說房間布局依照星座方位刻意繪製"],
+["鬱金香寓意畫","作者不詳","傳聞花朵品種記錄了一場真實的金融泡沫數據"],
+["戴紅帽的男子","未確認畫家","傳聞是某位歐洲王室失蹤成員的隱藏肖像"],
+["暴風雨","吉奧喬尼","傳聞畫中人物關係其實是一樁未公開的宮廷秘聞"],
+["月光下的教堂","佚名","傳說曾被用作二戰情報傳遞的掩護畫作"]
+];
+
+const CELEBS = [
+["艾維斯·普里斯萊","詐死傳聞：傳說仍隱居某處未死"],
+["瑪麗蓮·夢露","死因傳聞與政要秘密往來有關"],
+["麥可·傑克森","詐死傳聞：粉絲堅信他尚在人間"],
+["保羅·麥卡尼","「保羅已死」傳聞：1960年代遭替身取代"],
+["約翰·藍儂","遇刺案背後另有隱情的傳聞"],
+["艾薇兒·拉維尼","克隆／替身傳聞：本人早被替身取代"],
+["泰勒絲","彩蛋密碼傳聞：歌曲暗藏未來事件預告"],
+["碧昂絲","傳聞擁有真實存在的分身人格"],
+["蕾哈娜","光明會成員傳聞"],
+["Lady Gaga","光明會／共濟會成員傳聞"],
+["肯伊·威斯特","政府秘密實驗產物傳聞"],
+["凱蒂·佩芮","與失蹤兒童身分互換的傳聞"],
+["小賈斯汀","克隆／替身傳聞"],
+["亞莉安娜·格蘭德","AI生成偶像傳聞"],
+["賽琳娜·戈梅茲","秘密雙胞胎傳聞"],
+["麥莉·希拉","光明會成員傳聞"],
+["小甜甜布蘭妮","2007年後遭替身取代的傳聞"],
+["德瑞克","歌詞由他人代筆的傳聞"],
+["阿姆","本人已於2000年代初被替換的克隆傳聞"],
+["瑪丹娜","永不老化傳聞"],
+["王子","死亡時間被提前預言的傳聞"],
+["惠妮·休斯頓","光明會獻祭傳聞"],
+["佛萊迪·摩克瑞","病情遭刻意隱瞞多年的傳聞"],
+["寇特·柯本","死因陰謀論：懷疑並非自殺"],
+["艾米·懷恩豪斯","27俱樂部獻祭傳聞"],
+["艾維奇","27俱樂部傳聞"],
+["麥克·米勒","死因另有隱情的傳聞"],
+["克里斯·康奈爾","死因陰謀論"],
+["查斯特·班寧頓","死因陰謀論"],
+["比莉·艾利許","AI生成傳聞"],
+["卡蒂B","光明會成員傳聞"],
+["波斯特·馬龍","隱藏符號與詛咒傳聞"],
+["威肯","面具下真實身分互換傳聞"],
+["火星人布魯諾","時空旅人傳聞"],
+["愛黛兒","永不老化傳聞"],
+["紅髮艾德","現場分身代唱傳聞"],
+["哈利·史泰爾斯","平行時空傳聞"],
+["奧莉薇亞·羅德里戈","彩蛋密碼傳聞"],
+["杜娃·利帕","全息投影傳聞"],
+["夏奇拉","永不老化傳聞"],
+["珍妮佛·羅培茲","永不老化傳聞"],
+["席琳·狄翁","聲音經AI修飾傳聞"],
+["瑪麗亞·凱莉","永不老化傳聞"],
+["史提夫·汪達","其實看得見的傳聞"],
+["艾爾頓·強","共濟會成員傳聞"],
+["大衛·鮑伊","外星人傳聞（源自舞台形象）"],
+["吐派克·夏庫爾","詐死傳聞：傳說仍隱居古巴"],
+["聲名狼藉先生","死因陰謀論"],
+["史努比狗狗","永不老化傳聞"],
+["50分錢","克隆傳聞"],
+["湯姆·克魯斯","複製人傳聞"],
+["基努·李維","永生不死傳聞"],
+["尼可拉斯·凱吉","吸血鬼傳聞（經典網路哏）"],
+["李奧納多·狄卡皮歐","永不老化傳聞"],
+["布萊德·彼特","替身代演傳聞"],
+["安潔莉娜·裘莉","光明會成員傳聞"],
+["強尼·戴普","平行時空傳聞"],
+["威爾·史密斯","AI生成傳聞"],
+["傑登·史密斯","植物人傳聞（經典網路哏）"],
+["嘉達·蘋克·史密斯","光明會傳聞"],
+["丹佐·華盛頓","永不老化傳聞"],
+["摩根·費里曼","時空旅人傳聞"],
+["山繆·傑克森","分身代演傳聞"],
+["小勞勃·道尼","原型角色真實存在傳聞"],
+["史嘉蕾·喬韓森","AI生成聲音傳聞"],
+["珍妮佛·勞倫斯","替身代演傳聞"],
+["湯姆·漢克斯","永不老化傳聞"],
+["梅莉·史翠普","共濟會成員傳聞"],
+["巨石強森","基因改造傳聞（經典網路哏）"],
+["克里斯·伊凡","平行時空傳聞"],
+["克里斯·漢斯沃","北歐神話後裔傳聞（玩笑哏）"],
+["馬克·華伯格","永不老化傳聞"],
+["麥特·戴蒙","分身代演傳聞"],
+["喬治·克隆尼","名字即為克隆暗示的文字遊戲傳聞"],
+["茱莉亞·羅勃茲","永不老化傳聞"],
+["珊卓·布拉克","永不老化傳聞"],
+["艾瑪·華森","時空旅人傳聞"],
+["丹尼爾·雷德克里夫","永不老化傳聞"],
+["魯伯特·葛林","秘密雙胞胎傳聞"],
+["娜塔莉·波曼","光明會成員傳聞"],
+["安·海瑟薇","AI生成傳聞"],
+["柔伊·克拉維茲","全息投影傳聞"],
+["提摩西·夏勒梅","永不老化傳聞"],
+["瑪格·羅比","替身代演傳聞"],
+["萊恩·雷諾斯","段子由團隊代筆傳聞"],
+["休·傑克曼","永不老化傳聞"],
+["克里斯·帕拉特","分身代演傳聞"],
+["金·凱瑞","平行時空／多重人格傳聞"],
+["亞當·山德勒","永不老化傳聞"],
+["威爾·法洛","AI生成喜劇哏傳聞"],
+["歐普拉·溫芙蕾","光明會領袖傳聞"],
+["艾倫·狄珍妮","永不老化傳聞"],
+["金·卡戴珊","AI生成傳聞"],
+["芭黎絲·希爾頓","替身代演傳聞"],
+["琳賽·蘿涵","秘密雙胞胎傳聞"],
+["黛咪·洛瓦托","光明會獻祭傳聞"],
+["夏亞·拉畢福","平行時空傳聞"],
+["希斯·萊傑","死因陰謀論"],
+["瑞凡·費尼克斯","死因陰謀論"],
+["詹姆斯·迪恩","仍在世隱居的傳聞"]
+];
+
+const CITYWATCH = [
+["CASE-0091","夜鴉","多起住宅竊盜","中城七街","通緝中"],
+["CASE-0077","紅狐","偽造文書","港口區","已結案"],
+["CASE-0114","無聲者","非法入侵電腦系統","數位特區","通緝中"],
+["CASE-0042","影子股東","內線交易嫌疑","金融大道","偵辦中"],
+["CASE-0005","午夜商人","走私文物嫌疑","舊城碼頭","通緝中"],
+["CASE-0158","紙面人","身分盜用","中央車站","已結案"],
+["CASE-0023","灰塵","縱火嫌疑","工業區","偵辦中"],
+["CASE-0199","鏡像","假冒公務員","市政廳週邊","通緝中"],
+["CASE-0066","蜂后","組織非法集資","商業特區","偵辦中"],
+["CASE-0211","零號病人","散布虛假疫情資訊","全市","已結案"],
+["CASE-0033","夜行者","多起車輛竊盜","環河路","通緝中"],
+["CASE-0140","筆跡師","偽造簽名","舊市政廳","已結案"]
+];
+
+// matrix rain
+(function(){
+  const c=document.getElementById('rain'); const ctx=c.getContext('2d');
+  function resize(){c.width=innerWidth;c.height=innerHeight;}
+  resize(); addEventListener('resize',resize);
+  const fontSize=14; const chars="01アカサタナハマヤラワCIAFBINSAKGB";
+  let cols=Math.floor(c.width/fontSize); let drops=new Array(cols).fill(1);
+  function draw(){
+    ctx.fillStyle='rgba(5,8,5,0.08)'; ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle='#39ff6a'; ctx.font=fontSize+'px monospace';
+    for(let i=0;i<drops.length;i++){
+      const t=chars[Math.floor(Math.random()*chars.length)];
+      ctx.fillText(t,i*fontSize,drops[i]*fontSize);
+      if(drops[i]*fontSize>c.height && Math.random()>0.975) drops[i]=0;
+      drops[i]++;
+    }
+  }
+  setInterval(draw,55);
+})();
+
+// gate + attempts + scare
+const gate=document.getElementById('gate'), app=document.getElementById('app');
+const form=document.getElementById('passform'), input=document.getElementById('passinput'), err=document.getElementById('err');
+const attemptsEl=document.getElementById('attempts'), unlockbtn=document.getElementById('unlockbtn'), scare=document.getElementById('scare');
+let wrongCount=0, locked=false;
+try{ if(sessionStorage.getItem('declass_ok')==='1'){ gate.style.display='none'; app.style.display='block'; } }catch(e){}
+form.addEventListener('submit', function(e){
+  e.preventDefault();
+  if(locked) return;
+  if(input.value.trim()==='5420'){
+    try{ sessionStorage.setItem('declass_ok','1'); }catch(e){}
+    gate.style.display='none'; app.style.display='block';
+    setTimeout(()=>toast('ACCESS GRANTED — WELCOME OPERATIVE'),300);
+  } else {
+    wrongCount++;
+    err.textContent='ACCESS DENIED — invalid code';
+    attemptsEl.textContent='failed attempts: '+wrongCount+' / 5';
+    const box=document.querySelector('.term-box');
+    box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+    input.value=''; input.focus();
+    if(wrongCount>=5){ triggerScare(); }
+  }
+});
+function triggerScare(){
+  locked=true; unlockbtn.disabled=true;
+  scare.classList.add('show');
+  setTimeout(()=>{
+    scare.classList.remove('show');
+    wrongCount=0; attemptsEl.textContent='';
+    let cd=5; unlockbtn.textContent='LOCKED ('+cd+'s)';
+    const iv=setInterval(()=>{
+      cd--;
+      if(cd<=0){ clearInterval(iv); unlockbtn.textContent='UNLOCK'; unlockbtn.disabled=false; locked=false; }
+      else{ unlockbtn.textContent='LOCKED ('+cd+'s)'; }
+    },1000);
+  },1600);
+}
+
+// tab switching (shared by top tabs + sidebar drive links)
+function switchTab(name){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active', p.id==='pane-'+name));
+  toast('MODULE LOADED: '+name.toUpperCase());
+}
+document.querySelectorAll('.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>switchTab(btn.dataset.tab));
+});
+document.querySelectorAll('#sidebar [data-gotab]').forEach(el=>{
+  el.addEventListener('click', ()=>switchTab(el.dataset.gotab));
+});
+
+// directory category clicks -> jump to index tab filtered
+document.querySelectorAll('#dirtree .dnode[data-cat]').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    document.querySelectorAll('#dirtree .dnode').forEach(n=>n.classList.remove('on'));
+    el.classList.add('on');
+    activeCat = el.dataset.cat;
+    document.querySelectorAll('.chip').forEach(ch=>ch.classList.toggle('on', ch.textContent===activeCat));
+    switchTab('index');
+    render();
+  });
+});
+
+// directory pulse ticker (decorative)
+const dirMsgs=["SCANNING /MIND_CONTROL…","INDEXING /COVERT_ACTION…","SYNC /SIGINT…","CHECKSUM /JFK OK","MOUNTING CITY_WATCH.DB…","MOUNTING MUSEUM_FILES.DB…","MOUNTING CELEB_FILES.DB…"];
+let dpi=0; const dirpulse=document.getElementById('dirpulse');
+setInterval(()=>{ dirpulse.textContent='> '+dirMsgs[dpi%dirMsgs.length]; dpi++; },2400);
+
+// toast notifications
+function toast(msg){
+  const box=document.getElementById('toastbox');
+  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  box.appendChild(t); setTimeout(()=>t.remove(),2800);
+}
+
+// generic modal
+const modal=document.getElementById('modal');
+function showModal(catLabel, title, sub, detail){
+  const prog=document.getElementById('mprog'); if(prog){ prog.style.width='0%'; }
+  document.getElementById('mcat').textContent='['+catLabel+']';
+  document.getElementById('mtitle').textContent=title;
+  document.getElementById('mtag').textContent=sub;
+  document.getElementById('mdetail').textContent=detail;
+  modal.classList.add('show');
+  requestAnimationFrame(()=>{ if(prog) prog.style.width='100%'; });
+  toast('ACCESS GRANTED: '+title);
+  const cb=document.getElementById('copybtn');
+  if(cb) cb.onclick=()=>{ navigator.clipboard?.writeText(title).catch(()=>{}); toast('COPIED: '+title); };
+}
+modal.addEventListener('click', e=>{ if(e.target===modal) modal.classList.remove('show'); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') modal.classList.remove('show'); });
+
+// clock
+function updateClock(){ const c=document.getElementById('clockw'); if(c) c.textContent=new Date().toLocaleTimeString('en-GB'); }
+updateClock(); setInterval(updateClock,1000);
+
+// system load meters
+function updateMeters(){
+  ['cpu','mem','net'].forEach(id=>{
+    const el=document.getElementById('m-'+id);
+    if(el) el.style.width=(20+Math.random()*70).toFixed(0)+'%';
+  });
+}
+updateMeters(); setInterval(updateMeters,1800);
+
+// radar sweep
+(function(){
+  const rc=document.getElementById('radar'); if(!rc) return;
+  const rctx=rc.getContext('2d'); const R=rc.width/2;
+  let angle=0;
+  const blips=Array.from({length:7},()=>({a:Math.random()*Math.PI*2, r:Math.random()*R*0.85}));
+  function drawRadar(){
+    rctx.clearRect(0,0,rc.width,rc.height);
+    rctx.strokeStyle='rgba(57,255,106,0.35)';
+    for(let i=1;i<=3;i++){ rctx.beginPath(); rctx.arc(R,R,R*i/3,0,Math.PI*2); rctx.stroke(); }
+    rctx.beginPath(); rctx.moveTo(0,R); rctx.lineTo(R*2,R); rctx.moveTo(R,0); rctx.lineTo(R,R*2); rctx.stroke();
+    blips.forEach(b=>{
+      const x=R+Math.cos(b.a)*b.r, y=R+Math.sin(b.a)*b.r;
+      rctx.fillStyle='#39ff6a'; rctx.beginPath(); rctx.arc(x,y,2.5,0,Math.PI*2); rctx.fill();
+    });
+    rctx.save(); rctx.translate(R,R); rctx.rotate(angle);
+    const sweep=rctx.createLinearGradient(0,0,R,0);
+    sweep.addColorStop(0,'rgba(57,255,106,0.5)'); sweep.addColorStop(1,'rgba(57,255,106,0)');
+    rctx.fillStyle=sweep;
+    rctx.beginPath(); rctx.moveTo(0,0); rctx.arc(0,0,R,-0.15,0.15); rctx.closePath(); rctx.fill();
+    rctx.restore();
+    angle+=0.04;
+    requestAnimationFrame(drawRadar);
+  }
+  drawRadar();
+})();
+
+// click ripple micro-interaction
+document.addEventListener('click', e=>{
+  const el=e.target.closest('.row,#passform button,.tabs button,.linkcard,.chip,.dnode');
+  if(!el) return;
+  const rect=el.getBoundingClientRect();
+  const rip=document.createElement('span'); rip.className='ripple';
+  rip.style.left=(e.clientX-rect.left)+'px'; rip.style.top=(e.clientY-rect.top)+'px';
+  el.appendChild(rip); setTimeout(()=>rip.remove(),500);
+});
+
+// cursor glow
+const cursorGlow=document.getElementById('cursorglow');
+document.addEventListener('mousemove', e=>{
+  if(cursorGlow){ cursorGlow.style.left=e.clientX+'px'; cursorGlow.style.top=e.clientY+'px'; }
+});
+
+// konami code easter egg
+const konami=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+let kpos=0;
+document.addEventListener('keydown', e=>{
+  if(e.key===konami[kpos]){ kpos++; if(kpos===konami.length){ kpos=0; toast('CHEAT CODE ACCEPTED: GOD MODE'); document.body.classList.add('glitchflick'); setTimeout(()=>document.body.classList.remove('glitchflick'),600); } }
+  else kpos=0;
+});
+
+// index render
+const chipsEl=document.getElementById('chips'), rowsEl=document.getElementById('rows'), countEl=document.getElementById('count'), searchEl=document.getElementById('search');
+let activeCat='ALL';
+CATS.forEach(c=>{
+  const chip=document.createElement('div'); chip.className='chip'+(c==='ALL'?' on':''); chip.textContent=c;
+  chip.addEventListener('click', ()=>{ activeCat=c; document.querySelectorAll('.chip').forEach(ch=>ch.classList.remove('on')); chip.classList.add('on'); render(); });
+  chipsEl.appendChild(chip);
+});
+function render(){
+  const q=searchEl.value.trim().toLowerCase();
+  const filtered=DATA.filter(d=>{
+    const matchCat=activeCat==='ALL'||d[1]===activeCat;
+    const matchQ=!q||d[0].toLowerCase().includes(q)||d[2].toLowerCase().includes(q);
+    return matchCat&&matchQ;
+  });
+  countEl.textContent=filtered.length+' / '+DATA.length+' 筆';
+  rowsEl.innerHTML=filtered.map((d,i)=>
+    '<div class="row" data-code="'+d[0]+'"><div class="idx">'+String(i+1).padStart(3,'0')+'</div>'+
+    '<div><span class="code">'+d[0]+'</span><br><span class="tag">'+d[2]+'</span></div>'+
+    '<div class="cat">['+d[1]+']</div></div>'
+  ).join('');
+  rowsEl.querySelectorAll('.row').forEach(r=>r.addEventListener('click', ()=>{
+    const d=DATA.find(x=>x[0]===r.dataset.code); if(d) showModal(d[1], d[0], d[2], d[3]);
+  }));
+}
+searchEl.addEventListener('input', render);
+render();
+
+// museum render
+const msearchEl=document.getElementById('msearch'), mrowsEl=document.getElementById('mrows'), mcountEl=document.getElementById('mcount');
+function renderMuseum(){
+  const q=msearchEl.value.trim().toLowerCase();
+  const filtered=PAINTINGS.filter(d=>!q||d[0].toLowerCase().includes(q)||d[1].toLowerCase().includes(q));
+  mcountEl.textContent=filtered.length+' / '+PAINTINGS.length+' 筆';
+  mrowsEl.innerHTML=filtered.map((d,i)=>
+    '<div class="row" data-i="'+PAINTINGS.indexOf(d)+'"><div class="idx">'+String(i+1).padStart(3,'0')+'</div>'+
+    '<div><span class="code">'+d[0]+'</span><br><span class="tag">'+d[1]+'</span></div><div class="cat">傳說</div></div>'
+  ).join('');
+  mrowsEl.querySelectorAll('.row').forEach(r=>r.addEventListener('click', ()=>{
+    const d=PAINTINGS[+r.dataset.i]; showModal('都市傳說', d[0], d[1], d[2]);
+  }));
+}
+msearchEl.addEventListener('input', renderMuseum); renderMuseum();
+
+// celeb render
+const csearchEl=document.getElementById('csearch'), crowsEl=document.getElementById('crows'), ccountEl=document.getElementById('ccount');
+function renderCeleb(){
+  const q=csearchEl.value.trim().toLowerCase();
+  const filtered=CELEBS.filter(d=>!q||d[0].toLowerCase().includes(q));
+  ccountEl.textContent=filtered.length+' / '+CELEBS.length+' 筆';
+  crowsEl.innerHTML=filtered.map((d,i)=>
+    '<div class="row" data-i="'+CELEBS.indexOf(d)+'"><div class="idx">'+String(i+1).padStart(3,'0')+'</div>'+
+    '<div><span class="code">'+d[0]+'</span><br><span class="tag">'+d[1]+'</span></div><div class="cat">傳聞</div></div>'
+  ).join('');
+  crowsEl.querySelectorAll('.row').forEach(r=>r.addEventListener('click', ()=>{
+    const d=CELEBS[+r.dataset.i]; showModal('網路傳聞', d[0], d[1], '此為網路流傳的玩笑式都市傳說，純屬娛樂，並非事實指控：'+d[1]);
+  }));
+}
+csearchEl.addEventListener('input', renderCeleb); renderCeleb();
+
+// city watch render
+const wsearchEl=document.getElementById('wsearch'), wrowsEl=document.getElementById('wrows'), wcountEl=document.getElementById('wcount');
+function renderWatch(){
+  const q=wsearchEl.value.trim().toLowerCase();
+  const filtered=CITYWATCH.filter(d=> !q || d.join(' ').toLowerCase().includes(q));
+  wcountEl.textContent=filtered.length+' / '+CITYWATCH.length+' 筆（全為虛構）';
+  wrowsEl.innerHTML=filtered.map(d=>
+    '<div class="row" data-id="'+d[0]+'"><div class="idx">'+d[0].slice(5)+'</div>'+
+    '<div><span class="code">代號：'+d[1]+'</span><br><span class="tag">嫌疑：'+d[2]+' ／ 轄區：'+d[3]+'</span></div>'+
+    '<div class="cat">'+d[4]+'</div></div>'
+  ).join('');
+  wrowsEl.querySelectorAll('.row').forEach(r=>r.addEventListener('click', ()=>{
+    const d=CITYWATCH.find(x=>x[0]===r.dataset.id);
+    if(d) showModal('虛構案件', d[0]+' · '+d[1], '嫌疑：'+d[2]+'／轄區：'+d[3]+'／狀態：'+d[4], '此為虛構示範案件，不對應任何真實人物、地點或案件，僅供介面情境展示。');
+  }));
+}
+wsearchEl.addEventListener('input', renderWatch); renderWatch();
+
+// ticker
+const tickerMsgs=["SCANNING CREST INDEX…","25-YEAR AUTO-DECLASS CYCLE ACTIVE","NEW FOIA REQUEST QUEUED","MATCHING RECORD TO CATEGORY…","ARCHIVE SYNC: NARA COLLEGE PARK","REDACTION LAYER VERIFIED","CROSS-REF: NATIONAL SECURITY ARCHIVE","INDEX CHECKSUM OK"];
+const tl=document.getElementById('tickerlines');
+let ti=0;
+function tick(){
+  const d=document.createElement('div'); d.className='line'; d.textContent='['+new Date().toLocaleTimeString()+'] '+tickerMsgs[ti%tickerMsgs.length];
+  tl.prepend(d); ti++;
+  while(tl.children.length>6) tl.removeChild(tl.lastChild);
+}
+tick(); setInterval(tick, 3200);
+
+// shell
+const shellout=document.getElementById('shellout'), shellin=document.getElementById('shellin');
+function printLine(t){ const d=document.createElement('div'); d.textContent=t; shellout.appendChild(d); shellout.scrollTop=shellout.scrollHeight; }
+printLine('DECLASS_SHELL ready. type "help"');
+document.getElementById('shellform').addEventListener('submit', e=>{
+  e.preventDefault();
+  const cmd=shellin.value.trim(); printLine('> '+cmd);
+  const parts=cmd.split(' '); const c=parts[0]; const arg=parts.slice(1).join(' ').toUpperCase();
+  if(c==='help'){ printLine('指令： list [CATEGORY] | open <CODENAME> | count | clear | categories'); }
+  else if(c==='categories'){ printLine(CATS.join(', ')); }
+  else if(c==='list'){
+    const items=DATA.filter(d=>!arg||d[1]===arg);
+    if(items.length===0){ printLine('no matches'); }
+    items.slice(0,30).forEach(d=>printLine(d[0]+' ['+d[1]+'] — '+d[2]));
+    if(items.length>30) printLine('... +'+(items.length-30)+' more, refine with a category');
+  } else if(c==='open'){
+    const found=DATA.find(d=>d[0].toUpperCase()===arg);
+    if(found){ printLine(found[0]+' :: '+found[1]+' :: '+found[3]); showModal(found[1], found[0], found[2], found[3]); }
+    else printLine('no record found for "'+arg+'"');
+  } else if(c==='count'){ printLine('total records: '+DATA.length+' / paintings: '+PAINTINGS.length+' / celebs: '+CELEBS.length); }
+  else if(c==='clear'){ shellout.innerHTML=''; }
+  else if(c!==''){ printLine('unknown command: '+c); }
+  shellin.value='';
+});
+</script>
+<style id="xtra-css">
+#xbar{position:fixed;top:env(safe-area-inset-top,0px);left:0;height:2px;width:0;background:var(--fg);box-shadow:0 0 8px var(--fg);z-index:61}
+.xg{position:fixed;z-index:4;pointer-events:auto;color:var(--fg-dim);opacity:.35;font-size:.8rem;animation:xf linear infinite;cursor:pointer;user-select:none;transition:opacity .2s,color .2s}
+.xg:hover{opacity:1;color:var(--amber);text-shadow:0 0 8px var(--amber)}
+@keyframes xf{from{transform:translateY(105vh) rotate(0)}to{transform:translateY(-10vh) rotate(360deg)}}
+.xc{position:fixed;width:16px;height:16px;border:2px solid var(--fg);z-index:55;pointer-events:none;opacity:.55}
+.xc.a{top:calc(8px + env(safe-area-inset-top,0px));left:8px;border-right:0;border-bottom:0}.xc.b{top:calc(8px + env(safe-area-inset-top,0px));right:8px;border-left:0;border-bottom:0}
+.xc.c{bottom:calc(8px + env(safe-area-inset-bottom,0px));left:8px;border-right:0;border-top:0}.xc.d{bottom:calc(8px + env(safe-area-inset-bottom,0px));right:8px;border-left:0;border-top:0}
+#xw{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:16px}
+.xp{border:1px solid var(--line);background:var(--panel);padding:10px;font-size:.68rem;color:var(--fg-dim);transition:border-color .2s,box-shadow .2s,transform .2s;position:relative}
+.xp:hover{border-color:var(--fg);box-shadow:0 0 14px rgba(57,255,106,.18);transform:translateY(-2px)}
+.xp h4{margin:0 0 8px;font-weight:normal;color:var(--amber);font-size:.72rem;letter-spacing:1px}
+#xrad{position:relative;width:120px;height:120px;margin:0 auto;border:1px solid var(--fg-dim);border-radius:50%;background:radial-gradient(circle,transparent 30%,var(--line) 31%,transparent 32%,transparent 62%,var(--line) 63%,transparent 64%);overflow:hidden}
+#xrad::before{content:"";position:absolute;inset:0;background:conic-gradient(from 0deg,var(--fg) 0,transparent 60deg);opacity:.45;animation:xs 3s linear infinite}
+@keyframes xs{to{transform:rotate(360deg)}}
+.xb{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 6px var(--amber);cursor:pointer;animation:pulse 1.6s infinite}
+.xb:hover{background:var(--red);transform:scale(1.8)}
+.xm{display:flex;align-items:center;gap:6px;margin:6px 0;cursor:pointer}.xm i{flex:1;height:7px;background:#000;border:1px solid var(--line);position:relative;display:block}
+.xm i b{position:absolute;inset:0 auto 0 0;background:var(--fg);transition:width .6s;box-shadow:0 0 6px var(--fg)}
+#xhex{white-space:pre;font-size:.62rem;line-height:1.35;overflow:hidden;height:98px;color:var(--fg-dim)}
+#xhex span:hover{color:var(--amber)}
+#xlog{height:98px;overflow:hidden;font-size:.64rem;line-height:1.4}#xlog div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#xspark{width:100%;height:56px;display:block}
+.xclk{display:flex;justify-content:space-between;margin:4px 0;cursor:pointer}.xclk:hover b{color:var(--amber)}.xclk b{font-weight:normal;color:var(--fg-bright)}
+#xdock{position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:56;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+#xdock button{background:var(--bg2);border:1px solid var(--line);color:var(--fg);font-family:inherit;font-size:.7rem;padding:6px 9px;cursor:pointer;transition:all .15s}
+#xdock button:hover{background:var(--fg);color:#02130a;box-shadow:0 0 10px var(--fg)}#xdock button.off{opacity:.45}
+#xdockbtns{display:none;flex-direction:column;gap:6px}#xdock.open #xdockbtns{display:flex}
+.xs{position:fixed;z-index:57;width:5px;height:5px;background:var(--fg);pointer-events:none;border-radius:50%;box-shadow:0 0 6px var(--fg)}
+.xt{position:fixed;z-index:57;pointer-events:none;color:var(--fg);font-size:.7rem;opacity:.6;transition:opacity .6s}
+.xglitch{animation:xgl .4s steps(2)}@keyframes xgl{0%{transform:translate(0)}25%{transform:translate(-3px,1px);color:var(--red)}50%{transform:translate(3px,-1px);color:var(--amber)}100%{transform:translate(0)}}
+body.xnoflk .scan{display:none}body.xnorain canvas#rain{display:none}
+body.xflick{animation:xfl .12s steps(2) 3}@keyframes xfl{50%{filter:brightness(1.6) hue-rotate(20deg)}}
+</style>
+<script id="xtra-js">
+(function(){
+const $=(s,r)=> (r||document).querySelector(s), R=(a,b)=>a+Math.random()*(b-a), rp=a=>a[Math.floor(Math.random()*a.length)];
+const T=m=>{try{toast(m)}catch(e){}};
+let snd=false,AC=null;
+function beep(f,d){if(!snd)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=f||600;g.gain.value=.03;o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+(d||.05))}catch(e){}}
+// scroll bar, corners
+document.body.insertAdjacentHTML('beforeend','<div id="xbar"></div><div class="xc a"></div><div class="xc b"></div><div class="xc c"></div><div class="xc d"></div>');
+addEventListener('scroll',()=>{const h=document.documentElement;$('#xbar').style.width=(scrollY/Math.max(1,h.scrollHeight-innerHeight)*100)+'%'},{passive:true});
+// floating glyphs (30)
+const GL='01<>/\\{}[]#$%&*+=?!;:~^'.split('').concat(['☢','⚠','◈','▲','◉','✦','⌬','☍']);
+for(let i=0;i<30;i++){const g=document.createElement('div');g.className='xg';g.textContent=rp(GL);g.style.left=R(0,98)+'vw';g.style.fontSize=R(.7,1.4)+'rem';g.style.animationDuration=R(14,40)+'s';g.style.animationDelay=-R(0,30)+'s';
+g.onclick=()=>{g.textContent='✸';g.classList.add('xglitch');beep(900);T('SIGNAL INTERCEPTED: '+rp(['ALPHA','OMEGA','DELTA','NOVA','KILO','ECHO']) +'-'+Math.floor(R(100,999)));setTimeout(()=>{g.textContent=rp(GL);g.classList.remove('xglitch')},500)};document.body.appendChild(g)}
+// widget panels
+const W=document.createElement('div');W.id='xw';
+W.innerHTML=`<div class="xp"><h4>▸ RADAR_SWEEP</h4><div id="xrad"></div></div>
+<div class="xp"><h4>▸ SYS_METERS</h4><div class="xm" data-n="CPU">CPU<i><b></b></i><span>0%</span></div><div class="xm" data-n="MEM">MEM<i><b></b></i><span>0%</span></div><div class="xm" data-n="NET">NET<i><b></b></i><span>0%</span></div><div class="xm" data-n="DEC">DEC<i><b></b></i><span>0%</span></div></div>
+<div class="xp"><h4>▸ HEX_STREAM</h4><div id="xhex"></div></div>
+<div class="xp"><h4>▸ LIVE_LOG</h4><div id="xlog"></div></div>
+<div class="xp"><h4>▸ TRAFFIC</h4><canvas id="xspark" width="200" height="56"></canvas><div id="xspv" style="margin-top:4px">peak: --</div></div>
+<div class="xp"><h4>▸ WORLD_CLOCK</h4><div class="xclk" data-z="Asia/Taipei">TPE <b></b></div><div class="xclk" data-z="UTC">UTC <b></b></div><div class="xclk" data-z="America/New_York">NYC <b></b></div><div class="xclk" data-z="Europe/London">LON <b></b></div><div class="xclk" data-z="Asia/Tokyo">TYO <b></b></div></div>`;
+const app=$('#app'),lay=$('.layout');if(app&&lay)app.insertBefore(W,lay);
+// radar blips (10)
+const rad=$('#xrad');for(let i=0;i<10;i++){const b=document.createElement('div');b.className='xb';b.style.left=R(8,106)+'px';b.style.top=R(8,106)+'px';b.title='CONTACT_'+(i+1);
+b.onclick=()=>{beep(1200,.08);b.style.background='var(--red)';T('CONTACT_'+(i+1)+' BEARING '+Math.floor(R(0,360))+'° RANGE '+Math.floor(R(1,99))+'km');setTimeout(()=>{b.style.background='';b.style.left=R(8,106)+'px';b.style.top=R(8,106)+'px'},900)};rad.appendChild(b)}
+// meters
+const ms=[...document.querySelectorAll('.xm')];
+function tickM(){ms.forEach(m=>{const v=Math.floor(R(8,96));m.querySelector('b').style.width=v+'%';m.lastElementChild.textContent=v+'%';m.querySelector('b').style.background=v>85?'var(--red)':v>65?'var(--amber)':'var(--fg)'})}
+ms.forEach(m=>m.onclick=()=>{beep(500);T(m.dataset.n+' DIAGNOSTIC: NOMINAL');tickM()});tickM();setInterval(tickM,1800);
+// hex stream
+const hx=$('#xhex');function hexl(){let a=(Math.floor(R(0,65535))).toString(16).padStart(4,'0').toUpperCase(),s='';for(let i=0;i<6;i++)s+='<span>'+Math.floor(R(0,255)).toString(16).padStart(2,'0').toUpperCase()+'</span> ';return a+': '+s}
+function hexRow(){const d=document.createElement('div');d.innerHTML=hexl();hx.appendChild(d);while(hx.children.length>7)hx.firstChild.remove()}
+for(let i=0;i<7;i++)hexRow();setInterval(hexRow,900);hx.onclick=()=>{T('HEX BUFFER FLUSHED');hx.innerHTML='';for(let i=0;i<7;i++)hexRow()};
+// log
+const lg=$('#xlog'),MS=['handshake ok','packet reroute','cache purge','key rotated','decrypting vol.','node ping','checksum pass','redaction lift','archive mount','relay online','audit sync','uplink stable'];
+function logl(){const d=document.createElement('div');d.textContent='['+new Date().toTimeString().slice(0,8)+'] '+rp(MS)+' #'+Math.floor(R(100,999));d.style.cursor='pointer';d.onclick=()=>{d.style.color='var(--amber)';beep(700)};lg.appendChild(d);while(lg.children.length>7)lg.firstChild.remove()}
+for(let i=0;i<5;i++)logl();setInterval(logl,1400);
+// sparkline
+const sp=$('#xspark'),sc=sp.getContext('2d');let pts=Array.from({length:40},()=>R(10,45));
+function drawSp(){const cs=getComputedStyle(document.documentElement).getPropertyValue('--fg');sc.clearRect(0,0,200,56);sc.strokeStyle=cs;sc.lineWidth=1.5;sc.beginPath();pts.forEach((p,i)=>{i?sc.lineTo(i*5,56-p):sc.moveTo(0,56-p)});sc.stroke();$('#xspv').textContent='peak: '+Math.round(Math.max(...pts)*2)+' MB/s'}
+setInterval(()=>{pts.push(Math.max(5,Math.min(52,pts[pts.length-1]+R(-10,10))));pts.shift();drawSp()},500);sp.onclick=()=>{pts=pts.map(()=>R(5,52));T('TRAFFIC SAMPLE RESET')};
+// clocks
+function clk(){document.querySelectorAll('.xclk').forEach(c=>{try{c.lastElementChild.textContent=new Date().toLocaleTimeString('en-GB',{timeZone:c.dataset.z})}catch(e){}})}clk();setInterval(clk,1000);
+document.querySelectorAll('.xclk').forEach(c=>c.onclick=()=>T('ZONE: '+c.dataset.z));
+// dock
+const dk=document.createElement('div');dk.id='xdock';dk.innerHTML='<div id="xdockbtns"><button id="b1">◐ THEME</button><button id="b2">♪ SOUND: OFF</button><button id="b3">☔ RAIN</button><button id="b4">▤ SCANLINES</button><button id="b5">⚡ GLITCH</button><button id="b6">↑ TOP</button></div><button id="b0">⚙ HUD</button>';
+document.body.appendChild(dk);
+$('#b0').onclick=()=>{dk.classList.toggle('open');beep(400)};
+const TH=[['#39ff6a','#1e8a3e','#aaffbb','#164623'],['#ffb000','#8a6000','#ffe08a','#4a3500'],['#3ad6ff','#1e6f8a','#b4efff','#164058'],['#ff5cf0','#8a1e80','#ffb4f8','#461640']];let ti=0,bar=null;
+$('#b1').onclick=()=>{ti=(ti+1)%TH.length;const r=document.documentElement.style,t=TH[ti];r.setProperty('--fg',t[0]);r.setProperty('--fg-dim',t[1]);r.setProperty('--fg-bright',t[2]);r.setProperty('--line',t[3]);beep(800);T('THEME '+(ti+1)+'/4')};
+$('#b2').onclick=function(){snd=!snd;this.textContent='♪ SOUND: '+(snd?'ON':'OFF');beep(1000)};
+$('#b3').onclick=function(){document.body.classList.toggle('xnorain');this.classList.toggle('off')};
+$('#b4').onclick=function(){document.body.classList.toggle('xnoflk');this.classList.toggle('off')};
+$('#b5').onclick=glitchAll;$('#b6').onclick=()=>scrollTo({top:0,behavior:'smooth'});
+function glitchAll(){document.body.classList.add('xflick');document.querySelectorAll('h1,h2,h3,.statbox b').forEach(e=>{e.classList.add('xglitch');setTimeout(()=>e.classList.remove('xglitch'),450)});beep(200,.2);setTimeout(()=>document.body.classList.remove('xflick'),500)}
+// click sparks + trail
+document.addEventListener('click',e=>{for(let i=0;i<8;i++){const s=document.createElement('div');s.className='xs';s.style.left=e.clientX+'px';s.style.top=e.clientY+'px';document.body.appendChild(s);const a=R(0,6.28),d=R(20,60);s.animate([{transform:'translate(0,0)',opacity:1},{transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px)`,opacity:0}],{duration:500}).onfinish=()=>s.remove()}beep(500+Math.random()*300,.03)});
+let lt=0;document.addEventListener('mousemove',e=>{const n=Date.now();if(n-lt<70)return;lt=n;const t=document.createElement('div');t.className='xt';t.textContent=rp(['0','1','▪','·']);t.style.left=e.clientX+'px';t.style.top=e.clientY+'px';document.body.appendChild(t);requestAnimationFrame(()=>t.style.opacity=0);setTimeout(()=>t.remove(),650)});
+// hover glitch on headings, tabs beep, typing beep
+document.addEventListener('mouseover',e=>{const h=e.target.closest('h1,h2.sec,.statbox');if(h&&!h.classList.contains('xglitch')){h.classList.add('xglitch');setTimeout(()=>h.classList.remove('xglitch'),400)}});
+document.addEventListener('keydown',e=>{beep(300+Math.random()*200,.02);
+ const k=(window._kk=(window._kk||[]).concat(e.key).slice(-10)).join();
+ if(k==='ArrowUp,ArrowUp,ArrowDown,ArrowDown,ArrowLeft,ArrowRight,ArrowLeft,ArrowRight,b,a'){glitchAll();T('★ KONAMI CODE: CLEARANCE LEVEL OMEGA ★');ti=1;$('#b1').onclick()}});
+// title: 5 clicks easter egg
+let tc=0;const h1=$('.topbar h1');if(h1)h1.onclick=()=>{tc++;if(tc>=5){tc=0;glitchAll();T('EASTER EGG: YOU FOUND THE ARCHIVIST')}else T('CLICKS: '+tc+'/5')};
+// statboxes pulse
+document.querySelectorAll('.statbox').forEach(s=>s.addEventListener('click',()=>{s.classList.add('xglitch');beep(650);setTimeout(()=>s.classList.remove('xglitch'),400)}));
+setTimeout(()=>T('HUD ONLINE — try the ⚙ button, radar blips & Konami code'),1200);
+})();
+</script>
+<style id="x2-css">
+#x2bar{position:fixed;left:0;right:0;bottom:0;z-index:54;background:var(--bg2);border-top:1px solid var(--line);font-size:.64rem;color:var(--fg-dim);padding:3px 8px calc(3px + env(safe-area-inset-bottom,0px));display:flex;gap:14px;white-space:nowrap;overflow:hidden}
+#x2bar b{color:var(--fg-bright);font-weight:normal}
+#x2mq{flex:1;overflow:hidden}#x2mq span{display:inline-block;padding-left:100%;animation:x2m 40s linear infinite}@keyframes x2m{to{transform:translateX(-100%)}}
+#x2grid{display:grid;grid-template-columns:repeat(10,1fr);gap:2px}
+#x2grid i{aspect-ratio:1;background:#000;border:1px solid var(--line);cursor:pointer;transition:background .25s,box-shadow .25s}
+#x2grid i:hover,#x2grid i.on{background:var(--fg);box-shadow:0 0 8px var(--fg)}
+.x2btn{background:transparent;border:1px solid var(--fg-dim);color:var(--fg);font-family:inherit;font-size:.68rem;padding:5px 8px;cursor:pointer;margin:2px 2px 0 0}.x2btn:hover{background:var(--fg);color:#02130a}
+#x2rt{height:54px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--fg-dim);cursor:pointer;margin-bottom:6px;user-select:none}
+#x2ach{max-height:100px;overflow:auto}#x2ach div{margin:2px 0}
+#x2cm{position:fixed;z-index:90;display:none;background:var(--bg2);border:1px solid var(--fg);font-size:.72rem;min-width:150px;box-shadow:0 0 16px rgba(57,255,106,.25)}
+#x2cm div{padding:7px 12px;cursor:pointer;color:var(--fg)}#x2cm div:hover{background:var(--fg);color:#02130a}
+#x2note{position:fixed;top:120px;left:20px;width:200px;z-index:55;background:var(--bg2);border:1px solid var(--fg-dim);font-size:.66rem;color:var(--fg);display:none}
+#x2note u{display:block;text-decoration:none;background:var(--line);padding:4px 8px;cursor:move;color:var(--fg-bright)}#x2note p{margin:0;padding:8px;line-height:1.5}
+#x2xy{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:34px;z-index:55;font-size:.62rem;color:var(--fg-dim);pointer-events:none}
+.x2ov{position:fixed;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;font-size:.9rem;padding:20px;white-space:pre-line;cursor:pointer}
+.x2stamp{position:fixed;z-index:80;pointer-events:none;color:var(--red);border:3px solid var(--red);padding:4px 12px;font-size:1.3rem;letter-spacing:3px;transform:rotate(-12deg);animation:x2s 1.6s forwards}@keyframes x2s{0%{transform:scale(3) rotate(-12deg);opacity:0}15%{transform:scale(1) rotate(-12deg);opacity:1}85%{opacity:1}100%{opacity:0}}
+.x2cf{position:fixed;z-index:96;width:7px;height:7px;pointer-events:none}
+body.x2flip #app{transform:rotate(180deg)}body.x2party{animation:x2p 2s linear infinite}@keyframes x2p{to{filter:hue-rotate(360deg)}}
+body.x2shake{animation:shake .4s 4}
+.row{transition:transform .12s ease-out}
+</style>
+<script id="x2-js">
+(function(){
+const $=s=>document.querySelector(s),R=(a,b)=>a+Math.random()*(b-a),rp=a=>a[Math.floor(Math.random()*a.length)];
+const T=m=>{try{toast(m)}catch(e){}};
+const st={clk:0,key:0,t0:Date.now(),got:new Set(),tabs:new Set()};
+// status bar + marquee + coords
+document.body.insertAdjacentHTML('beforeend','<div id="x2bar"><span>CLK <b id="s1">0</b></span><span>KEY <b id="s2">0</b></span><span>UP <b id="s3">0s</b></span><span>BAT <b id="s4">--</b></span><span>NET <b id="s5">--</b></span><span>🏆 <b id="s6">0</b>/12</span><div id="x2mq"><span>★ 輸入暗號試試：hack · party · nuke · bsod · flip · ghost · matrix · confetti ★ 按 ? 看全部快捷鍵 ★ 雙擊任何列蓋章 ★ 右鍵有選單 ★ 連點右上角 REC 7 次有彩蛋 ★</span></div></div><div id="x2xy">X:0 Y:0</div><div id="x2cm"></div><div id="x2note"><u>▣ NOTE.TXT [拖曳我]</u><p>操作員備忘：\n密碼是四位數字…\n你已經知道了，對吧？</p></div>');
+const S=id=>document.getElementById(id);
+setInterval(()=>{S('s3').textContent=Math.floor((Date.now()-st.t0)/1000)+'s';S('s5').textContent=navigator.onLine?'ON':'OFF'},1000);
+try{navigator.getBattery&&navigator.getBattery().then(b=>S('s4').textContent=Math.round(b.level*100)+'%')}catch(e){}
+document.addEventListener('mousemove',e=>S('x2xy').textContent='X:'+e.clientX+' Y:'+e.clientY);
+// achievements
+const AC={c10:'手指暖機：點擊 10 次',c50:'點擊狂：50 次',c200:'點擊之神：200 次',k50:'鍵盤戰士：50 次按鍵',tabs:'探索者：逛遍全部分頁',konami:'Konami 傳奇',cheat:'暗號大師：輸入任一暗號',stamp:'蓋章官：雙擊蓋章',grid:'點亮 20 個節點',rt:'反應測試：低於 400ms',rec:'REC 彩蛋',menu:'右鍵選單開啟',note:'拖曳備忘'};
+function ach(k){if(st.got.has(k))return;st.got.add(k);S('s6').textContent=st.got.size;T('🏆 成就解鎖：'+AC[k]);confetti(25);const a=S('x2ach');if(a){const d=document.createElement('div');d.textContent='✔ '+AC[k];a.appendChild(d)}}
+function confetti(n){for(let i=0;i<n;i++){const c=document.createElement('div');c.className='x2cf';c.style.background=rp(['#39ff6a','#ffb000','#ff4d4d','#3ad6ff','#ff5cf0']);c.style.left=R(10,90)+'vw';c.style.top='-10px';document.body.appendChild(c);c.animate([{transform:'translateY(0) rotate(0)',opacity:1},{transform:`translate(${R(-80,80)}px,${innerHeight}px) rotate(${R(180,720)}deg)`,opacity:.2}],{duration:R(1200,2400)}).onfinish=()=>c.remove()}}
+document.addEventListener('click',e=>{st.clk++;S('s1').textContent=st.clk;if(st.clk==10)ach('c10');if(st.clk==50)ach('c50');if(st.clk==200)ach('c200');const b=e.target.closest('.tabs button');if(b){st.tabs.add(b.dataset.tab);if(st.tabs.size>=8)ach('tabs')}});
+// widgets panel 2
+const W=document.createElement('div');W.id='x2w';W.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:16px';
+W.innerHTML=`<div class="xp"><h4>▸ NODE_GRID [100]</h4><div id="x2grid"></div><div id="x2gc" style="margin-top:4px">lit: 0</div></div>
+<div class="xp"><h4>▸ REACTION_TEST</h4><div id="x2rt">點擊開始</div><div id="x2rs">best: --</div></div>
+<div class="xp"><h4>▸ ACHIEVEMENTS</h4><div id="x2ach"></div></div>
+<div class="xp"><h4>▸ COMMANDS</h4><button class="x2btn" data-c="hack">HACK</button><button class="x2btn" data-c="party">PARTY</button><button class="x2btn" data-c="nuke">NUKE</button><button class="x2btn" data-c="bsod">BSOD</button><button class="x2btn" data-c="flip">FLIP</button><button class="x2btn" data-c="ghost">GHOST</button><button class="x2btn" data-c="confetti">CONFETTI</button><button class="x2btn" data-c="note">NOTE</button><button class="x2btn" data-c="help">HELP</button></div>
+<div class="xp"><h4>▸ DICE_ORACLE</h4><div id="x2d" style="font-size:2rem;text-align:center;cursor:pointer;color:var(--fg-bright)">⚀</div><div id="x2dt" style="text-align:center">點骰子預測命運</div></div>
+<div class="xp"><h4>▸ DECODER</h4><div id="x2dec" style="font-size:1rem;color:var(--fg-bright);cursor:pointer;min-height:1.4em">CLICK TO DECRYPT</div></div>
+<div class="xp"><h4>▸ SIGNAL_BARS</h4><div id="x2sig" style="display:flex;gap:3px;align-items:flex-end;height:50px"></div></div>
+<div class="xp"><h4>▸ COORD_LOCK</h4><div id="x2lk" style="cursor:pointer;line-height:1.6">LAT <b id="la">--</b><br>LON <b id="lo">--</b><br>ALT <b id="al">--</b></div></div>`;
+const lay=$('.layout'),app=$('#app');if(app&&lay)app.insertBefore(W,lay);
+// grid
+const gr=S('x2grid');let lit=0;for(let i=0;i<100;i++){const c=document.createElement('i');c.onclick=()=>{c.classList.toggle('on');lit+=c.classList.contains('on')?1:-1;S('x2gc').textContent='lit: '+lit;if(lit>=20)ach('grid')};gr.appendChild(c)}
+setInterval(()=>{const c=gr.children[Math.floor(R(0,100))];c.style.opacity=.4;setTimeout(()=>c.style.opacity='',300)},250);
+// reaction
+let rs=0,rb=1e9,rto;const rt=S('x2rt');rt.onclick=()=>{if(rs==0){rs=1;rt.textContent='等待變色…';rto=setTimeout(()=>{rs=2;rt.style.background='var(--fg)';rt.style.color='#000';rt.textContent='現在點！';rt.t=Date.now()},R(1000,3000))}else if(rs==1){clearTimeout(rto);rs=0;rt.textContent='太早了！再試一次'}else{const ms=Date.now()-rt.t;rb=Math.min(rb,ms);S('x2rs').textContent='last: '+ms+'ms  best: '+rb+'ms';rs=0;rt.style.background='';rt.style.color='';rt.textContent='點擊開始';if(ms<400)ach('rt')}};
+// dice, decoder, signal, coords
+const DF='⚀⚁⚂⚃⚄⚅',FT=['今日宜低調','有人在看你','密碼就在眼前','小心第三頁','好運降臨','別相信時鐘'];
+S('x2d').onclick=()=>{let n=0;const iv=setInterval(()=>{S('x2d').textContent=rp(DF.split(''));if(++n>8){clearInterval(iv);const v=Math.floor(R(0,6));S('x2d').textContent=DF[v];S('x2dt').textContent=FT[v]}},60)};
+const CH='█▓▒░#@%&*01';function scr(el,txt){let i=0;const iv=setInterval(()=>{el.textContent=txt.split('').map((c,j)=>j<i?c:rp(CH.split(''))).join('');if(++i>txt.length)clearInterval(iv)},50)}
+S('x2dec').onclick=()=>scr(S('x2dec'),rp(['MISSION: CLASSIFIED','ARCHIVE UNSEALED','TRUTH IS OUT THERE','ACCESS LEVEL: OMEGA','FILE 7734 OPEN']));
+document.addEventListener('mouseover',e=>{const h=e.target.closest('h2.sec,.tabs button');if(h&&!h._s){h._s=1;const o=h.textContent;scr(h,o);setTimeout(()=>{h.textContent=o;h._s=0},o.length*50+80)}});
+const sg=S('x2sig');for(let i=0;i<14;i++){const b=document.createElement('i');b.style.cssText='flex:1;background:var(--fg);transition:height .4s;display:block;height:10px';b.onmouseover=()=>b.style.background='var(--amber)';sg.appendChild(b)}setInterval(()=>[...sg.children].forEach(b=>b.style.height=R(6,50)+'px'),700);
+const gl=()=>{S('la').textContent=(R(-90,90)).toFixed(4);S('lo').textContent=(R(-180,180)).toFixed(4);S('al').textContent=Math.floor(R(0,9000))+'m'};gl();S('x2lk').onclick=()=>{gl();T('TARGET RE-ACQUIRED')};setInterval(gl,4000);
+// effects
+function ov(bg,fg,txt,ms){const o=document.createElement('div');o.className='x2ov';o.style.cssText+='background:'+bg+';color:'+fg;o.textContent=txt;document.body.appendChild(o);const f=()=>o.remove();o.onclick=f;if(ms)setTimeout(f,ms)}
+const FX={hack(){let n=0;const L=['> connecting to mainframe...','> bypassing firewall [####------]','> injecting payload [########--]','> decrypting archives [##########]','> ACCESS GRANTED'];const o=document.createElement('div');o.className='x2ov';o.style.cssText+='background:#000;color:#39ff6a;align-items:flex-start;text-align:left';document.body.appendChild(o);const iv=setInterval(()=>{o.textContent+=(n?'\n':'')+L[n];if(++n>=L.length){clearInterval(iv);setTimeout(()=>o.remove(),900)}},450);o.onclick=()=>{clearInterval(iv);o.remove()}},
+party(){document.body.classList.toggle('x2party');confetti(60)},nuke(){document.body.classList.add('x2shake');ov('#ff0000','#fff','☢ NUCLEAR LAUNCH DETECTED ☢',900);setTimeout(()=>document.body.classList.remove('x2shake'),1700)},
+bsod(){ov('#0034c8','#fff',':(\n你的終端機遇到問題，需要重新啟動。\nSTOP: DECLASS_EXCEPTION 0x5420\n\n(點擊任意處繼續)')},flip(){document.body.classList.toggle('x2flip')},
+ghost(){document.querySelectorAll('.pane,.panel,.xp,.statbox').forEach(e=>{e.style.transition='opacity 1s';e.style.opacity=.15;setTimeout(()=>e.style.opacity='',2500)})},
+matrix(){const c=document.getElementById('rain');if(c){c.style.opacity=.9;setTimeout(()=>c.style.opacity='',3000)}},confetti(){confetti(80)},
+note(){const n=S('x2note');n.style.display=n.style.display=='block'?'none':'block'},help(){ov('rgba(0,0,0,.93)','#39ff6a','快捷鍵 / 暗號\n\n? 說明　　Esc 關閉\n輸入 hack / party / nuke / bsod / flip\nghost / matrix / confetti / note\n↑↑↓↓←→←→ B A　Konami\n雙擊列：蓋章　右鍵：選單\n連點 REC 7 次：彩蛋\n\n(點擊關閉)')}};
+function run(c){if(FX[c]){FX[c]();ach('cheat');return 1}}
+document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>run(b.dataset.c));
+let buf='',ks=[];document.addEventListener('keydown',e=>{st.key++;S('s2').textContent=st.key;if(st.key==50)ach('k50');if(e.key=='Escape')document.querySelectorAll('.x2ov').forEach(o=>o.remove());
+ const t=e.target.tagName;if(t=='INPUT'||t=='TEXTAREA')return;if(e.key=='?'){FX.help();return}
+ ks.push(e.key);ks=ks.slice(-10);if(ks.join()=='ArrowUp,ArrowUp,ArrowDown,ArrowDown,ArrowLeft,ArrowRight,ArrowLeft,ArrowRight,b,a'){ach('konami');confetti(100)}
+ if(e.key.length==1){buf=(buf+e.key.toLowerCase()).slice(-12);for(const k in FX)if(buf.endsWith(k)){run(k);buf='';break}}});
+// REC x7
+let rc=0;const rd=document.querySelector('.dot.r');if(rd)rd.parentElement.onclick=()=>{if(++rc>=7){rc=0;ach('rec');ach('konami');confetti(100);ov('#000','#ff4d4d','● REC ●\n你被錄下來了…',1400)}else T('REC '+rc+'/7')};
+// stamp on dblclick
+document.addEventListener('dblclick',e=>{if(!e.target.closest('.row'))return;const s=document.createElement('div');s.className='x2stamp';s.textContent=rp(['DECLASSIFIED','APPROVED','TOP SECRET','VERIFIED','REDACTED']);s.style.left=Math.min(e.clientX,innerWidth-200)+'px';s.style.top=e.clientY+'px';document.body.appendChild(s);setTimeout(()=>s.remove(),1700);ach('stamp')});
+// tilt on rows
+document.addEventListener('mousemove',e=>{const r=e.target.closest&&e.target.closest('.row');if(!r)return;const b=r.getBoundingClientRect(),x=(e.clientX-b.left)/b.width-.5,y=(e.clientY-b.top)/b.height-.5;r.style.transform=`perspective(500px) rotateY(${x*6}deg) rotateX(${-y*6}deg) translateX(3px)`});
+document.addEventListener('mouseout',e=>{const r=e.target.closest&&e.target.closest('.row');if(r)r.style.transform=''});
+// context menu
+const cm=S('x2cm');cm.innerHTML='<div data-c="hack">▸ 駭入</div><div data-c="party">▸ 派對模式</div><div data-c="ghost">▸ 幽靈模式</div><div data-c="note">▸ 開關備忘</div><div data-c="confetti">▸ 彩帶</div><div data-c="help">▸ 說明</div>';
+document.addEventListener('contextmenu',e=>{if(!$('#app')||$('#app').style.display!='block')return;e.preventDefault();cm.style.display='block';cm.style.left=Math.min(e.clientX,innerWidth-160)+'px';cm.style.top=Math.min(e.clientY,innerHeight-190)+'px';ach('menu')});
+cm.onclick=e=>{const d=e.target.closest('[data-c]');if(d)run(d.dataset.c);cm.style.display='none'};document.addEventListener('click',()=>cm.style.display='none');
+// draggable note
+(function(){const n=S('x2note'),h=n.querySelector('u');let d=0,ox,oy;const dn=e=>{d=1;const p=e.touches?e.touches[0]:e;ox=p.clientX-n.offsetLeft;oy=p.clientY-n.offsetTop};const mv=e=>{if(!d)return;const p=e.touches?e.touches[0]:e;n.style.left=p.clientX-ox+'px';n.style.top=p.clientY-oy+'px';ach('note')};h.addEventListener('mousedown',dn);h.addEventListener('touchstart',dn,{passive:true});addEventListener('mousemove',mv);addEventListener('touchmove',mv,{passive:true});addEventListener('mouseup',()=>d=0);addEventListener('touchend',()=>d=0)})();
+setTimeout(()=>T('第二波 HUD 上線 — 按 ? 看暗號'),2600);
+})();
+</script>
+</body>
+</html>
